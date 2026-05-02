@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String            @id @default(cuid())
+  username          String            @unique
+  passwordHash      String
+  avatar            String?
+  fateFragments     Int               @default(0)
+  totalPlayTime     Int               @default(0)
+  generationCount   Int               @default(0)
+  aiProvider        String?
+  aiApiKeyEncrypted String?
+  aiModel           String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  saves             SaveData[]
+  achievements      UserAchievement[]
+
+  @@map("users")
+}
+
+model SaveData {
+  id           String   @id @default(cuid())
+  userId       String
+  character    Json
+  history      Json[]
+  achievements String[]
+  playTime     Int      @default(0)
+  generation   Int      @default(1)
+  saveDate     DateTime @default(now())
+  syncStatus   String   @default("synced")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saves")
+}
+
+model Achievement {
+  id               String            @id @default(cuid())
+  achievementId    String            @unique
+  title            String
+  description      String
+  rarity           String            @default("common")
+  icon             String?
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime    @default(now())
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}

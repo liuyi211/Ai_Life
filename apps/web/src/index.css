@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    font-family:
+      'PingFang SC',
+      'Hiragino Sans GB',
+      'Microsoft YaHei',
+      'Noto Sans SC',
+      'Helvetica Neue',
+      Helvetica,
+      Arial,
+      sans-serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #F5F5F0;
+    color: #374151;
+    letter-spacing: 0.02em;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* 输入框 placeholder 样式 */
+  input::placeholder {
+    color: rgba(34, 29, 24, 0.22);
+    font-size: 16px;
+    font-weight: 300;
+    letter-spacing: 1px;
+  }
+
+  /* Toast 显示状态 */
+  #auth-toast.show {
+    opacity: 1 !important;
+    transform: translateX(-50%) translateY(0) !important;
+  }
+
+  /* 隐藏浏览器默认的密码显示图标 */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
+
+  input[type="password"]::-webkit-contacts-auto-fill-button,
+  input[type="password"]::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+  }
+}

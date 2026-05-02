@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>人生回响 | 登录 / 铭刻印记</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #eee9df;
+      --ink: #221d18;
+      --ink-soft: #5a5047;
+      --muted: #948879;
+      --line: rgba(34, 29, 24, 0.13);
+      --line-strong: rgba(34, 29, 24, 0.28);
+      --crimson: #7a2020;
+      --crimson-soft: rgba(122, 32, 32, 0.10);
+      --gold: #9f7c3e;
+      --ivory: #f8f4ec;
+      --font-serif: 'Cormorant Garamond', 'Noto Serif SC', serif;
+      --font-cn: 'Noto Serif SC', serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% -12%, rgba(122,32,32,0.13), transparent 34%),
+        radial-gradient(circle at 8% 78%, rgba(159,124,62,0.18), transparent 31%),
+        radial-gradient(circle at 92% 80%, rgba(34,29,24,0.08), transparent 30%),
+        linear-gradient(180deg, #f4efe6 0%, #ebe3d5 46%, #ddd1bf 100%);
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.17;
+      background-image:
+        linear-gradient(90deg, rgba(34,29,24,0.12) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(34,29,24,0.09) 1px, transparent 1px),
+        repeating-radial-gradient(circle at 20% 20%, rgba(34,29,24,0.13) 0 1px, transparent 1px 4px);
+      background-size: 74px 74px, 74px 74px, 18px 18px;
+      mix-blend-mode: multiply;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100vh;
+      padding: 38px 26px 30px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sigil {
+      position: absolute;
+      top: 84px;
+      left: 50%;
+      width: 342px;
+      height: 342px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(34,29,24,0.08);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+      animation: breathe 5.8s ease-in-out infinite;
+    }
+
+    .sigil::before,
+    .sigil::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(34,29,24,0.07);
+    }
+
+    .sigil::before { inset: 34px; }
+    .sigil::after { inset: 78px; border-color: rgba(122,32,32,0.12); }
+
+    .sigil-line,
+    .sigil-line::before,
+    .sigil-line::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: rgba(34,29,24,0.045);
+      transform-origin: center;
+    }
+
+    .sigil-line::before { transform: rotate(60deg); }
+    .sigil-line::after { transform: rotate(-60deg); }
+
+    @keyframes breathe {
+      0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.82; }
+      50% { transform: translateX(-50%) scale(1.035); opacity: 1; }
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 42px;
+    }
+
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 15px;
+      letter-spacing: 2px;
+      font-style: italic;
+    }
+
+    .mark::before {
+      content: "";
+      width: 26px;
+      height: 1px;
+      background: rgba(34,29,24,0.35);
+    }
+
+    .temple-seal {
+      width: 52px;
+      height: 64px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px 999px 22px 22px;
+      background: rgba(248,244,236,0.38);
+      color: var(--crimson);
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      box-shadow: 0 12px 34px rgba(34,29,24,0.08);
+    }
+
+    .temple-seal::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border: 1px solid rgba(122,32,32,0.16);
+      border-radius: inherit;
+    }
+
+    .hero {
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 48px;
+      line-height: 1.02;
+      font-weight: 400;
+      letter-spacing: 10px;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 4px;
+    }
+
+    .login-card {
+      position: relative;
+      height: 430px;
+      flex: 0 0 430px;
+      padding: 24px 20px 22px;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(180deg, rgba(248,244,236,0.60), rgba(238,233,223,0.36)),
+        radial-gradient(circle at 50% 6%, rgba(159,124,62,0.15), transparent 35%);
+      box-shadow: 0 24px 70px rgba(34,29,24,0.13);
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+
+    .login-card::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(34,29,24,0.09);
+      pointer-events: none;
+    }
+
+    .login-card::after {
+      content: "ACCESS TO DESTINY";
+      position: absolute;
+      left: 50%;
+      top: 118px;
+      transform: translateX(-50%);
+      color: rgba(34,29,24,0.045);
+      font-size: 34px;
+      letter-spacing: 5px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .card-corners span {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-color: var(--crimson);
+      opacity: 0.55;
+    }
+
+    .card-corners span:nth-child(1) { left: 12px; top: 12px; border-left: 1px solid; border-top: 1px solid; }
+    .card-corners span:nth-child(2) { right: 12px; top: 12px; border-right: 1px solid; border-top: 1px solid; }
+    .card-corners span:nth-child(3) { left: 12px; bottom: 12px; border-left: 1px solid; border-bottom: 1px solid; }
+    .card-corners span:nth-child(4) { right: 12px; bottom: 12px; border-right: 1px solid; border-bottom: 1px solid; }
+
+    .card-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 26px;
+    }
+
+    .state {
+      color: var(--crimson);
+      font-size: 13px;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .state::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--crimson);
+      box-shadow: 0 0 0 7px rgba(122,32,32,0.07);
+    }
+
+    .chapter {
+      text-align: right;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 2px;
+      line-height: 1.6;
+    }
+
+    .chapter strong {
+      display: block;
+      color: var(--ink);
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    .input-group {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 22px;
+    }
+
+    .input-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 11px;
+    }
+
+    .label-en {
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 2px;
+      font-style: italic;
+    }
+
+    .label-cn {
+      color: var(--ink);
+      font-size: 15px;
+      letter-spacing: 3px;
+    }
+
+    .input-oracle {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid rgba(34,29,24,0.18);
+      background: transparent;
+      padding: 7px 52px 13px 0;
+      color: var(--ink);
+      outline: none;
+      border-radius: 0;
+      font-family: var(--font-serif);
+      font-size: 21px;
+      font-weight: 400;
+      transition: all 0.35s ease;
+    }
+
+    .input-oracle:focus {
+      border-bottom-color: var(--crimson);
+      padding-left: 8px;
+    }
+
+    .input-oracle::placeholder {
+      color: rgba(34,29,24,0.24);
+      font-size: 16px;
+      letter-spacing: 1px;
+      font-weight: 300;
+    }
+
+    .toggle-pwd {
+      position: absolute;
+      right: 0;
+      bottom: 13px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.25s ease;
+    }
+
+    .toggle-pwd.active {
+      color: var(--crimson);
+    }
+
+    .oracle-copy {
+      position: relative;
+      z-index: 1;
+      margin: 4px 0 0;
+      padding: 2px 0 0;
+    }
+
+    .oracle-copy p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-family: var(--font-cn);
+      font-size: 13px;
+      line-height: 1.9;
+      letter-spacing: 1px;
+    }
+
+    .oracle-copy p + p {
+      margin-top: 6px;
+      color: var(--muted);
+    }
+
+    .register-only {
+      display: none;
+    }
+
+    .app.register-mode .register-only {
+      display: block;
+    }
+
+    .app.register-mode .login-only {
+      display: none;
+    }
+
+    /* 第三层区域：登录态显示中文说明，注册态显示确认密钥，避免卡片高度跳变 */
+    .app:not(.register-mode) .confirm-group {
+      display: none;
+    }
+
+    .app.register-mode .oracle-copy {
+      display: none;
+    }
+
+    .app.register-mode .login-card,
+    .app:not(.register-mode) .login-card {
+      height: 430px;
+    }
+
+    .mode-back {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-decoration: none;
+    }
+
+    .app.register-mode .mode-back {
+      display: inline-flex;
+    }
+
+    .mode-back:active {
+      color: var(--crimson);
+    }
+
+    .action-section {
+      margin-top: 18px;
+      min-height: 118px;
+      flex: 0 0 118px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      height: 62px;
+      border: none;
+      background: var(--ink);
+      color: var(--ivory);
+      font-family: var(--font-serif);
+      font-size: 16px;
+      letter-spacing: 7px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .primary-btn:active {
+      background: var(--crimson);
+      transform: translateY(2px);
+    }
+
+    .footer-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 1px;
+      gap: 12px;
+    }
+
+    .footer-link > span {
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .footer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      white-space: nowrap;
+    }
+
+    .link-btn,
+    .guest-btn {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(34,29,24,0.28);
+      padding-bottom: 2px;
+      letter-spacing: 2px;
+      transition: color 0.25s, border-color 0.25s;
+    }
+
+    .guest-btn {
+      color: var(--muted);
+      border-bottom-color: rgba(148, 136, 121, 0.32);
+    }
+
+    .link-btn:active,
+    .guest-btn:active {
+      color: var(--crimson);
+      border-color: var(--crimson);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 120px;
+      transform: translateX(-50%) translateY(14px);
+      opacity: 0;
+      z-index: 30;
+      pointer-events: none;
+      background: rgba(34,29,24,0.92);
+      color: var(--ivory);
+      padding: 11px 17px;
+      font-size: 13px;
+      letter-spacing: 2px;
+      transition: all 0.24s ease;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 380px) {
+      .app {
+        padding-left: 22px;
+        padding-right: 22px;
+      }
+
+      h1 {
+        font-size: 44px;
+        letter-spacing: 8px;
+      }
+
+      .footer-link {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .footer-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    @media (min-width: 768px) {
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #d4c8b8;
+      }
+
+      .app {
+        width: 430px;
+        height: 860px;
+        max-height: 96vh;
+        background: var(--bg);
+        box-shadow: 0 30px 100px rgba(34,29,24,0.24);
+      }
+
+      .toast {
+        bottom: calc(50% - 370px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <div class="sigil" aria-hidden="true"><span class="sigil-line"></span></div>
+
+    <header>
+      <div class="topbar">
+        <div class="mark">Oracle Gate</div>
+        <div class="temple-seal">命</div>
+      </div>
+
+      <section class="hero">
+        <h1 id="pageTitle">人生回响</h1>
+        <p class="subtitle" id="pageSubtitle">AI 驱动的无限命运模拟</p>
+      </section>
+    </header>
+
+    <section class="login-card">
+      <div class="card-corners"><span></span><span></span><span></span><span></span></div>
+
+      <div class="card-head">
+        <div class="state">命运之门待启</div>
+        <div class="chapter">ACCESS<strong>I</strong></div>
+      </div>
+
+      <div class="input-group">
+        <div class="input-label">
+          <span class="label-en">01 / Soul Mark</span>
+          <span class="label-cn">灵魂印记</span>
+        </div>
+        <input id="account" class="input-oracle" type="text" placeholder="输入您的账户名" autocomplete="username">
+      </div>
+
+      <div class="input-group">
+        <div class="input-label">
+          <span class="label-en">02 / Secret Thread</span>
+          <span class="label-cn">命运秘钥</span>
+        </div>
+        <input id="password" class="input-oracle" type="password" placeholder="输入您的密码" autocomplete="current-password">
+        <span id="togglePwd" class="toggle-pwd" onclick="togglePassword('password', 'togglePwd')">[ 隐 ]</span>
+      </div>
+
+      <div class="input-group register-only confirm-group">
+        <div class="input-label">
+          <span class="label-en">03 / Confirm Thread</span>
+          <span class="label-cn">确认密钥</span>
+        </div>
+        <input id="confirmPassword" class="input-oracle" type="password" placeholder="再次输入您的密钥" autocomplete="new-password">
+        <span id="toggleConfirmPwd" class="toggle-pwd" onclick="togglePassword('confirmPassword', 'toggleConfirmPwd')">[ 隐 ]</span>
+      </div>
+
+      <div class="oracle-copy">
+        <p class="login-only">每一次进入，都是命线重新垂落的瞬间。</p>
+        <p class="login-only">旧日选择并未消失，它沉于因果之河，待下次回响。</p>
+        <p class="register-only">铭刻印记之后，你的每一次选择都将被命运记录。</p>
+        <p class="register-only">从此刻开始，你将在命运长河留下自己的痕迹。</p>
+      </div>
+    </section>
+
+    <footer class="action-section">
+      <button class="primary-btn" id="primaryBtn" onclick="primaryAction()">开启命运</button>
+      <div class="footer-link login-only">
+        <span>尚未铭刻灵魂印记？</span>
+        <div class="footer-actions">
+          <a href="#" class="guest-btn" onclick="guestLogin(event)">访客登录</a>
+          <a href="#" class="link-btn" onclick="showRegister(event)">创建命运</a>
+        </div>
+      </div>
+      <a href="#" class="mode-back register-only" onclick="showLogin(event)">返回登录</a>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast">命运已回应</div>
+
+  <script>
+    let toastTimer = null;
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
+    }
+
+    let isRegisterMode = false;
+
+    function togglePassword(inputId = 'password', toggleId = 'togglePwd') {
+      const input = document.getElementById(inputId);
+      const toggle = document.getElementById(toggleId);
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = '[ 显 ]';
+        toggle.classList.add('active');
+      } else {
+        input.type = 'password';
+        toggle.textContent = '[ 隐 ]';
+        toggle.classList.remove('active');
+      }
+    }
+
+    function primaryAction() {
+      isRegisterMode ? createAccount() : login();
+    }
+
+    function showRegister(event) {
+      event.preventDefault();
+      isRegisterMode = true;
+      document.getElementById('app').classList.add('register-mode');
+      document.getElementById('pageTitle').textContent = '铭刻印记';
+      document.getElementById('pageSubtitle').textContent = '在命运长河留下你的痕迹';
+      document.getElementById('primaryBtn').textContent = '完成铭刻';
+      document.getElementById('password').setAttribute('autocomplete', 'new-password');
+      toast('进入铭刻印记流程');
+    }
+
+    function showLogin(event) {
+      event.preventDefault();
+      isRegisterMode = false;
+      document.getElementById('app').classList.remove('register-mode');
+      document.getElementById('pageTitle').textContent = '人生回响';
+      document.getElementById('pageSubtitle').textContent = 'AI 驱动的无限命运模拟';
+      document.getElementById('primaryBtn').textContent = '开启命运';
+      document.getElementById('password').setAttribute('autocomplete', 'current-password');
+      toast('返回登录');
+    }
+
+    function login() {
+      const account = document.getElementById('account').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!account) {
+        toast('请先输入灵魂印记');
+        return;
+      }
+
+      if (!password) {
+        toast('请先输入命运秘钥');
+        return;
+      }
+
+      toast('命运门扉已开启');
+    }
+
+    function guestLogin(event) {
+      event.preventDefault();
+      toast('以访客身份进入命运主厅');
+    }
+
+    function createAccount() {
+      const account = document.getElementById('account').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const confirmPassword = document.getElementById('confirmPassword').value.trim();
+
+      if (!account) {
+        toast('请先铭刻灵魂印记');
+        return;
+      }
+
+      if (!password) {
+        toast('请先设置命运秘钥');
+        return;
+      }
+
+      if (!confirmPassword) {
+        toast('请再次确认密钥');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        toast('两次密钥并不一致');
+        return;
+      }
+
+      toast('灵魂印记已铭刻');
+    }
+  </script>
+</body>
+</html>

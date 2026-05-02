@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>人生回响 | 命运捏造</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #eee9df;
+      --ink: #221d18;
+      --ink-soft: #5a5047;
+      --muted: #948879;
+      --line: rgba(34, 29, 24, 0.13);
+      --line-strong: rgba(34, 29, 24, 0.28);
+      --crimson: #7a2020;
+      --gold: #9f7c3e;
+      --green: #3e6a4b;
+      --ivory: #f8f4ec;
+      --font-serif: 'Cormorant Garamond', 'Noto Serif SC', serif;
+      --font-cn: 'Noto Serif SC', serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% -12%, rgba(122,32,32,0.13), transparent 34%),
+        radial-gradient(circle at 8% 78%, rgba(159,124,62,0.18), transparent 31%),
+        radial-gradient(circle at 92% 80%, rgba(34,29,24,0.08), transparent 30%),
+        linear-gradient(180deg, #f4efe6 0%, #ebe3d5 46%, #ddd1bf 100%);
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.17;
+      background-image:
+        linear-gradient(90deg, rgba(34,29,24,0.12) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(34,29,24,0.09) 1px, transparent 1px),
+        repeating-radial-gradient(circle at 20% 20%, rgba(34,29,24,0.13) 0 1px, transparent 1px 4px);
+      background-size: 74px 74px, 74px 74px, 18px 18px;
+      mix-blend-mode: multiply;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100vh;
+      padding: 22px 22px 18px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sigil {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      width: 338px;
+      height: 338px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(34,29,24,0.08);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+      animation: breathe 5.8s ease-in-out infinite;
+    }
+
+    .sigil::before,
+    .sigil::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(34,29,24,0.07);
+    }
+
+    .sigil::before { inset: 32px; }
+    .sigil::after { inset: 72px; border-color: rgba(122,32,32,0.12); }
+
+    .sigil-line,
+    .sigil-line::before,
+    .sigil-line::after {
+      content: "";
+      position: absolute;
+      left: 50%; top: 0;
+      width: 1px; height: 100%;
+      background: rgba(34,29,24,0.045);
+      transform-origin: center;
+    }
+    .sigil-line::before { transform: rotate(60deg); }
+    .sigil-line::after { transform: rotate(-60deg); }
+
+    @keyframes breathe {
+      0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.82; }
+      50% { transform: translateX(-50%) scale(1.035); opacity: 1; }
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 7px;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line-strong);
+      background: rgba(248,244,236,0.38);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: 20px;
+      cursor: pointer;
+      transition: .24s ease;
+    }
+
+    .icon-btn:active { transform: translateY(2px); border-color: var(--crimson); color: var(--crimson); }
+
+    .title-wrap { text-align: center; }
+    .title-wrap .en {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      font-style: italic;
+      margin-bottom: 4px;
+    }
+    .title-wrap h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.08;
+      font-weight: 400;
+      letter-spacing: 5px;
+    }
+
+    .progress {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .step-dot {
+      position: relative;
+      padding: 11px 0 10px;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      border-left: none;
+      border-top: none;
+      border-bottom: none;
+      font-family: var(--font-serif);
+      cursor: pointer;
+    }
+
+    .step-dot:last-child { border-right: none; }
+    .step-dot span { display: block; font-size: 13px; line-height: 1; margin-bottom: 5px; letter-spacing: 1px; }
+    .step-dot b { display: block; font-weight: 400; font-size: 11px; letter-spacing: 1px; }
+    .step-dot.active { color: var(--crimson); }
+    .step-dot.done { color: var(--ink); }
+    .step-dot.active::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -1px;
+      width: 28px;
+      height: 1px;
+      transform: translateX(-50%);
+      background: var(--crimson);
+    }
+
+    .stage-shell {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stage {
+      display: none;
+      height: 100%;
+      flex-direction: column;
+      animation: fadeUp .34s ease both;
+    }
+
+    .stage.active { display: flex; }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .stage-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 11px;
+    }
+    .stage-head .cn { color: var(--ink); font-size: 16px; letter-spacing: 3px; }
+    .stage-head .en { color: var(--muted); font-size: 13px; letter-spacing: 2px; font-style: italic; }
+
+    .scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 3px;
+      scrollbar-width: none;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+
+    .card {
+      position: relative;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(180deg, rgba(248,244,236,0.58), rgba(238,233,223,0.34)),
+        radial-gradient(circle at 50% 10%, rgba(159,124,62,0.13), transparent 35%);
+      padding: 13px 13px 12px;
+      margin-bottom: 9px;
+      overflow: hidden;
+      box-shadow: 0 10px 32px rgba(34,29,24,0.06);
+      cursor: pointer;
+      transition: .24s ease;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(34,29,24,0.08);
+      pointer-events: none;
+    }
+
+    .card:active,
+    .card.active { border-color: rgba(122,32,32,0.46); background: rgba(122,32,32,0.045); transform: translateX(3px); }
+
+    .card-mark {
+      position: absolute;
+      right: 10px;
+      top: 4px;
+      color: rgba(34,29,24,0.045);
+      font-size: 38px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .card-top,
+    .row-between {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .tag {
+      color: var(--crimson);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tag::before {
+      content: "";
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--crimson);
+      box-shadow: 0 0 0 7px rgba(122,32,32,0.07);
+    }
+
+    .code {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .card h2,
+    .card h3 {
+      position: relative;
+      z-index: 1;
+      margin: 0 0 6px;
+      font-weight: 400;
+      letter-spacing: 3px;
+    }
+    .card h2 { font-size: 22px; }
+    .card h3 { font-size: 21px; }
+
+    .desc {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: var(--ink-soft);
+      font-family: var(--font-cn);
+      font-size: 12px;
+      line-height: 1.55;
+      letter-spacing: .8px;
+    }
+
+    .chips {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      border: 1px solid rgba(34,29,24,0.13);
+      color: var(--muted);
+      background: rgba(248,244,236,0.36);
+      padding: 3px 6px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      font-family: var(--font-cn);
+    }
+
+    .world-detail {
+      position: relative;
+      z-index: 1;
+      margin-top: 8px;
+      display: none;
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+    .card.active .world-detail { display: block; }
+
+    .world-config {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .world-config button {
+      height: 30px;
+      border: 1px solid rgba(34,29,24,0.14);
+      background: rgba(248,244,236,0.34);
+      color: var(--muted);
+      font-family: var(--font-cn);
+      font-size: 11px;
+      letter-spacing: .5px;
+      cursor: pointer;
+    }
+
+    .world-config button.active,
+    .world-config button:active {
+      background: var(--ink);
+      color: var(--ivory);
+      border-color: var(--ink);
+    }
+
+    .input-group { margin-bottom: 19px; }
+    .input-label { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 9px; }
+    .label-en { color: var(--muted); font-size: 13px; letter-spacing: 2px; font-style: italic; }
+    .label-cn { color: var(--ink); font-size: 14px; letter-spacing: 2px; }
+
+    .input-oracle, .textarea-oracle {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid rgba(34,29,24,0.18);
+      background: transparent;
+      color: var(--ink);
+      outline: none;
+      border-radius: 0;
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 400;
+      padding: 7px 0 13px;
+      transition: .32s ease;
+    }
+
+    .textarea-oracle { min-height: 74px; resize: none; line-height: 1.7; font-family: var(--font-cn); font-size: 14px; }
+    .input-oracle:focus, .textarea-oracle:focus { border-bottom-color: var(--crimson); padding-left: 8px; }
+    .input-oracle::placeholder, .textarea-oracle::placeholder { color: rgba(34,29,24,0.24); font-size: 15px; letter-spacing: 1px; }
+
+    .custom-select {
+      position: relative;
+      width: 100%;
+      border-bottom: 1px solid rgba(34,29,24,0.18);
+    }
+
+    .select-trigger {
+      width: 100%;
+      height: 46px;
+      border: none;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: 19px;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .select-trigger::after {
+      content: "⌄";
+      color: var(--ink);
+      font-size: 18px;
+      transition: transform .22s ease;
+    }
+
+    .custom-select.open .select-trigger::after {
+      transform: rotate(180deg);
+      color: var(--crimson);
+    }
+
+    .select-menu {
+      display: none;
+      position: relative;
+      z-index: 8;
+      margin-top: 8px;
+      border: 1px solid var(--line-strong);
+      background: #f3eddf;
+      box-shadow: 0 16px 38px rgba(34,29,24,0.13);
+      padding: 6px;
+    }
+
+    .custom-select.open .select-menu {
+      display: grid;
+      gap: 4px;
+    }
+
+    .select-option {
+      height: 38px;
+      border: none;
+      background: transparent;
+      color: var(--ink-soft);
+      text-align: left;
+      padding: 0 10px;
+      font-family: var(--font-cn);
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .select-option.active,
+    .select-option:active {
+      background: var(--ink);
+      color: var(--ivory);
+    }
+
+    .segmented { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); }
+    .segmented button {
+      border: none;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      height: 48px;
+      font-family: var(--font-serif);
+      font-size: 14px;
+      letter-spacing: 3px;
+      cursor: pointer;
+    }
+    .segmented button:last-child { border-right: none; }
+    .segmented button.active { background: var(--ink); color: var(--ivory); }
+
+    .origin-grid, .talent-grid, .pref-grid { display: grid; gap: 10px; }
+    .origin-grid { grid-template-columns: repeat(2, 1fr); }
+    .pref-grid { grid-template-columns: repeat(2, 1fr); }
+
+    .origin-oracle {
+      position: relative;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(180deg, rgba(248,244,236,0.58), rgba(238,233,223,0.34)),
+        radial-gradient(circle at 50% 6%, rgba(122,32,32,0.08), transparent 38%);
+      padding: 18px 16px 16px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 38px rgba(34,29,24,0.07);
+    }
+
+    .origin-oracle::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(34,29,24,0.08);
+      pointer-events: none;
+    }
+
+    .origin-oracle::after {
+      content: "ORIGIN";
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      color: rgba(34,29,24,0.045);
+      font-size: 44px;
+      letter-spacing: 4px;
+      pointer-events: none;
+    }
+
+    .origin-title {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 13px;
+    }
+
+    .origin-title h2 {
+      margin: 0 0 7px;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: 4px;
+    }
+
+    .origin-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+      line-height: 1.6;
+    }
+
+    .origin-rank {
+      color: var(--crimson);
+      font-size: 24px;
+      font-weight: 300;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .origin-bars {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .origin-bar {
+      display: grid;
+      grid-template-columns: 52px 1fr 32px;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .origin-bar i {
+      height: 1px;
+      background: rgba(34,29,24,0.14);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .origin-bar i::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 1px;
+      width: var(--v, 50%);
+      background: var(--crimson);
+    }
+
+    .origin-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .origin-tab {
+      height: 42px;
+      border: none;
+      border-right: 1px solid var(--line);
+      background: rgba(248,244,236,0.22);
+      color: var(--muted);
+      font-family: var(--font-serif);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+
+    .origin-tab:last-child { border-right: none; }
+    .origin-tab.active { background: var(--ink); color: var(--ivory); }
+
+    .origin-panel { display: none; }
+    .origin-panel.active { display: block; animation: fadeUp .28s ease both; }
+
+    .origin-choice {
+      position: relative;
+      border: 1px solid var(--line);
+      background: rgba(248,244,236,0.30);
+      padding: 14px 13px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: .24s ease;
+    }
+
+    .origin-choice::after {
+      content: attr(data-code);
+      position: absolute;
+      right: 9px;
+      bottom: 2px;
+      color: rgba(34,29,24,0.055);
+      font-size: 38px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .origin-choice.active,
+    .origin-choice:active {
+      border-color: rgba(122,32,32,0.42);
+      background: rgba(122,32,32,0.055);
+      transform: translateX(3px);
+    }
+
+    .origin-choice h3 {
+      margin: 0 0 7px;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 2px;
+    }
+
+    .origin-choice p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.65;
+      letter-spacing: .7px;
+      max-width: 92%;
+    }
+
+    .origin-impact {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .origin-impact span {
+      border: 1px solid rgba(34,29,24,0.12);
+      color: var(--muted);
+      background: rgba(248,244,236,0.32);
+      padding: 4px 7px;
+      font-size: 11px;
+      letter-spacing: .8px;
+    }
+
+    .option-card {
+      position: relative;
+      min-height: 112px;
+      border: 1px solid var(--line);
+      background: rgba(248,244,236,0.30);
+      padding: 14px 12px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: .24s ease;
+    }
+    .option-card.active, .option-card:active { border-color: rgba(122,32,32,0.42); background: rgba(122,32,32,0.055); transform: translateY(-2px); }
+    .option-card h3 { margin: 0 0 8px; font-size: 18px; font-weight: 400; letter-spacing: 2px; }
+    .option-card p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.65; letter-spacing: .7px; }
+    .option-card em { position: absolute; right: 9px; bottom: 5px; color: rgba(34,29,24,0.06); font-style: normal; font-size: 38px; }
+
+    .attribute-panel {
+      position: relative;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(248,244,236,0.18);
+      padding: 4px 0 8px;
+      overflow: hidden;
+    }
+
+    .attribute-panel::before,
+    .attribute-panel::after {
+      display: none;
+    }
+
+    .attr-pool {
+      display: none;
+    }
+
+    .attr-pool h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 3px;
+    }
+
+    .attr-pool p {
+      display: none;
+    }
+
+    .pool-num {
+      color: var(--crimson);
+      font-size: 22px;
+      font-weight: 300;
+      line-height: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+
+    .pool-num::before {
+      content: "剩余";
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .attr-list {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 5px;
+    }
+
+    .attr-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: 54px 1fr 74px;
+      gap: 8px;
+      align-items: center;
+      border: none;
+      border-bottom: 1px solid rgba(34,29,24,0.09);
+      background: transparent;
+      padding: 6px 0;
+    }
+
+    .attr-card:last-child {
+      border-bottom: none;
+    }
+
+    .attr-name {
+      min-width: 0;
+    }
+
+    .attr-name b {
+      display: block;
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      margin-bottom: 3px;
+      line-height: 1;
+    }
+
+    .attr-name span {
+      display: block;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 1.2px;
+      line-height: 1;
+    }
+
+    .attr-meter {
+      min-width: 0;
+    }
+
+    .attr-track {
+      height: 1px;
+      background: rgba(34,29,24,0.16);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .attr-track::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: calc(var(--value, 0) * 10%);
+      height: 1px;
+      background: var(--crimson);
+    }
+
+    .attr-meta {
+      display: none;
+    }
+
+    .attr-control {
+      display: grid;
+      grid-template-columns: 22px 26px 22px;
+      gap: 2px;
+      align-items: center;
+      justify-content: end;
+    }
+
+    .attr-control button {
+      width: 22px;
+      height: 24px;
+      border: 1px solid var(--line);
+      background: rgba(248,244,236,0.26);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .attr-control button:active {
+      border-color: var(--crimson);
+      color: var(--crimson);
+      background: rgba(122,32,32,0.06);
+    }
+
+    .attr-value {
+      text-align: center;
+      color: var(--ink);
+      font-size: 19px;
+      line-height: 1;
+      font-weight: 300;
+    }
+
+    .talent-altar {
+      position: relative;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(180deg, rgba(248,244,236,0.62), rgba(238,233,223,0.34)),
+        radial-gradient(circle at 50% 10%, rgba(122,32,32,0.10), transparent 36%);
+      padding: 12px 13px 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      box-shadow: 0 18px 58px rgba(34,29,24,0.09);
+    }
+
+    .talent-altar::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(34,29,24,0.08);
+      pointer-events: none;
+    }
+
+    .talent-altar::after {
+      content: "TALENT";
+      position: absolute;
+      left: 50%;
+      top: 46px;
+      transform: translateX(-50%);
+      color: rgba(34,29,24,0.04);
+      font-size: 34px;
+      letter-spacing: 5px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .draw-orb {
+      position: relative;
+      z-index: 1;
+      width: 86px;
+      height: 86px;
+      margin: 0 auto 9px;
+      border: 1px solid rgba(122,32,32,0.30);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle, rgba(248,244,236,0.56), rgba(122,32,32,0.05));
+      box-shadow: 0 0 0 8px rgba(122,32,32,0.035), inset 0 0 26px rgba(159,124,62,0.10);
+      cursor: pointer;
+      transition: .3s ease;
+    }
+
+    .draw-orb::before,
+    .draw-orb::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(34,29,24,0.10);
+    }
+
+    .draw-orb::before { inset: 10px; }
+    .draw-orb::after { inset: 23px; border-color: rgba(122,32,32,0.13); }
+
+    .draw-orb span {
+      position: relative;
+      z-index: 1;
+      color: var(--crimson);
+      font-size: 20px;
+      letter-spacing: 3px;
+    }
+
+    .draw-orb.drawing {
+      animation: drawPulse .8s ease-in-out infinite;
+    }
+
+    @keyframes drawPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 8px rgba(122,32,32,0.035), inset 0 0 26px rgba(159,124,62,0.10); }
+      50% { transform: scale(1.035); box-shadow: 0 0 0 13px rgba(122,32,32,0.055), inset 0 0 34px rgba(122,32,32,0.15); }
+    }
+
+    .draw-status {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      line-height: 1.55;
+      margin-bottom: 9px;
+    }
+
+    .talent-slots {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 9px;
+    }
+
+    .talent-slot {
+      min-height: 44px;
+      border: 1px dashed rgba(34,29,24,0.20);
+      background: rgba(248,244,236,0.24);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+      line-height: 1.35;
+      text-align: center;
+      padding: 6px;
+    }
+
+    .talent-slot.filled {
+      border-style: solid;
+      border-color: rgba(122,32,32,0.34);
+      color: var(--crimson);
+      background: rgba(122,32,32,0.045);
+    }
+
+    .talent-card {
+      position: relative;
+      border: 1px solid var(--line);
+      padding: 13px 13px;
+      background: rgba(248,244,236,0.30);
+      overflow: hidden;
+      cursor: pointer;
+      transition: .24s ease;
+      animation: cardReveal .34s ease both;
+    }
+    .talent-card::after {
+      content: "✦";
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      color: rgba(122,32,32,0.20);
+      font-size: 18px;
+    }
+    .talent-card.active { border-color: rgba(122,32,32,0.46); background: rgba(122,32,32,0.055); transform: translateX(3px); }
+    .talent-card.locked { border-color: rgba(34,29,24,0.34); background: rgba(34,29,24,0.045); }
+    .rarity { color: var(--crimson); font-size: 11px; letter-spacing: 1.5px; margin-bottom: 5px; }
+    .talent-card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 400; letter-spacing: 2px; }
+    .talent-card p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.65; letter-spacing: .6px; }
+
+    @keyframes cardReveal {
+      from { opacity: 0; transform: translateY(12px) rotateX(10deg); }
+      to { opacity: 1; transform: translateY(0) rotateX(0); }
+    }
+
+    .inherit-hero {
+      position: relative;
+      border: 1px solid var(--line-strong);
+      background:
+        linear-gradient(180deg, rgba(248,244,236,0.58), rgba(238,233,223,0.34)),
+        radial-gradient(circle at 50% 0%, rgba(122,32,32,0.08), transparent 42%);
+      padding: 16px 15px 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 38px rgba(34,29,24,0.07);
+    }
+
+    .inherit-hero::before {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 1px solid rgba(34,29,24,0.08);
+      pointer-events: none;
+    }
+
+    .inherit-hero::after {
+      content: "LEGACY";
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      color: rgba(34,29,24,0.045);
+      font-size: 42px;
+      letter-spacing: 4px;
+      pointer-events: none;
+    }
+
+    .inherit-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .inherit-head h2 {
+      margin: 0 0 7px;
+      font-size: 25px;
+      font-weight: 400;
+      letter-spacing: 4px;
+    }
+
+    .inherit-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+      letter-spacing: .8px;
+    }
+
+    .legacy-quota {
+      color: var(--crimson);
+      font-size: 24px;
+      font-weight: 300;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .legacy-quota::before {
+      content: "可继承 ";
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .inherit-slots {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .inherit-slot {
+      min-height: 44px;
+      border: 1px dashed rgba(34,29,24,0.20);
+      background: rgba(248,244,236,0.24);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-align: center;
+      padding: 6px;
+    }
+
+    .inherit-slot.filled {
+      border-style: solid;
+      border-color: rgba(122,32,32,0.34);
+      color: var(--crimson);
+      background: rgba(122,32,32,0.045);
+    }
+
+    .legacy-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+    }
+
+    .legacy-tab {
+      height: 40px;
+      border: none;
+      border-right: 1px solid var(--line);
+      background: rgba(248,244,236,0.22);
+      color: var(--muted);
+      font-family: var(--font-serif);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+
+    .legacy-tab:last-child { border-right: none; }
+    .legacy-tab.active { background: var(--ink); color: var(--ivory); }
+
+    .legacy-panel { display: none; }
+    .legacy-panel.active { display: block; animation: fadeUp .28s ease both; }
+
+    .legacy-item {
+      position: relative;
+      border: 1px solid var(--line);
+      background: rgba(248,244,236,0.30);
+      padding: 13px 12px;
+      margin-bottom: 9px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: .24s ease;
+    }
+
+    .legacy-item::after {
+      content: attr(data-mark);
+      position: absolute;
+      right: 9px;
+      bottom: 2px;
+      color: rgba(34,29,24,0.055);
+      font-size: 34px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .legacy-item.active,
+    .legacy-item:active {
+      border-color: rgba(122,32,32,0.42);
+      background: rgba(122,32,32,0.055);
+      transform: translateX(3px);
+    }
+
+    .legacy-item .rarity {
+      color: var(--crimson);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      margin-bottom: 5px;
+    }
+
+    .legacy-item h3 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 2px;
+    }
+
+    .legacy-item p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.6;
+      letter-spacing: .7px;
+      max-width: 92%;
+    }
+
+    .legacy-source {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .summary-card {
+      border: 1px solid var(--line-strong);
+      background: rgba(248,244,236,0.36);
+      padding: 18px 16px;
+      margin-bottom: 12px;
+    }
+    .summary-line { display: flex; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); padding: 11px 0; }
+    .summary-line:first-child { padding-top: 0; }
+    .summary-line:last-child { border-bottom: none; padding-bottom: 0; }
+    .summary-line span { color: var(--muted); font-size: 12px; letter-spacing: 2px; white-space: nowrap; }
+    .summary-line b { font-weight: 400; color: var(--ink); font-size: 14px; letter-spacing: 1px; text-align: right; }
+
+    .bottom-actions {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn-ghost, .btn-primary {
+      height: 56px;
+      font-family: var(--font-serif);
+      font-size: 15px;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: .24s ease;
+    }
+    .btn-ghost { border: 1px solid var(--line-strong); background: rgba(248,244,236,0.32); color: var(--muted); }
+    .btn-primary { border: none; background: var(--ink); color: var(--ivory); }
+    .btn-primary:active { background: var(--crimson); transform: translateY(2px); }
+    .btn-ghost:active { color: var(--crimson); border-color: var(--crimson); transform: translateY(2px); }
+
+    .sheet-mask { position: fixed; inset: 0; z-index: 20; background: rgba(34,29,24,0.22); opacity: 0; pointer-events: none; transition: .25s ease; }
+    .sheet-mask.show { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: absolute;
+      left: 12px; right: 12px; bottom: 12px;
+      transform: translateY(110%);
+      background: #f3eddf;
+      border: 1px solid rgba(34,29,24,0.24);
+      box-shadow: 0 -20px 70px rgba(34,29,24,0.20);
+      padding: 22px 20px 20px;
+      transition: transform .32s cubic-bezier(.2,.8,.2,1);
+    }
+    .sheet-mask.show .sheet { transform: translateY(0); }
+    .sheet::before { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(34,29,24,0.08); pointer-events: none; }
+    .sheet-mark { width: 42px; height: 4px; background: rgba(34,29,24,0.18); margin: 0 auto 20px; }
+    .sheet h2 { margin: 0 0 12px; font-size: 27px; font-weight: 400; letter-spacing: 4px; }
+    .sheet p { margin: 0 0 20px; color: var(--ink-soft); font-size: 14px; line-height: 1.9; letter-spacing: 1px; }
+    .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sheet-actions button { height: 52px; border: 1px solid var(--line-strong); background: transparent; font-family: var(--font-serif); font-size: 15px; letter-spacing: 3px; color: var(--ink); }
+    .sheet-actions .enter { background: var(--ink); color: var(--ivory); border-color: var(--ink); }
+
+    .toast {
+      position: fixed;
+      left: 50%; bottom: 88px;
+      transform: translateX(-50%) translateY(14px);
+      opacity: 0; z-index: 30; pointer-events: none;
+      background: rgba(34,29,24,0.92);
+      color: var(--ivory);
+      padding: 11px 17px;
+      font-size: 13px;
+      letter-spacing: 2px;
+      transition: .24s ease;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (min-width: 768px) {
+      body { display: flex; align-items: center; justify-content: center; background: #d4c8b8; }
+      .app { width: 430px; height: 860px; max-height: 96vh; background: var(--bg); box-shadow: 0 30px 100px rgba(34,29,24,0.24); }
+      .sheet-mask { display: flex; align-items: center; justify-content: center; }
+      .sheet { width: 406px; left: auto; right: auto; bottom: calc(50% - 414px); }
+      .toast { bottom: calc(50% - 370px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="sigil" aria-hidden="true"><span class="sigil-line"></span></div>
+
+    <header class="topbar">
+      <button class="icon-btn" onclick="openSheet('返回主厅', '当前新建人生尚未完成，返回后将丢失未保存的命运设定。')">‹</button>
+      <div class="title-wrap">
+        <div class="en">Genesis Ritual</div>
+        <h1>命运捏造</h1>
+      </div>
+      <button class="icon-btn" onclick="randomAll()">骰</button>
+    </header>
+
+    <nav class="progress">
+      <button class="step-dot active" data-step="0" onclick="goStep(0)"><span>Ⅰ</span><b>世界</b></button>
+      <button class="step-dot" data-step="1" onclick="goStep(1)"><span>Ⅱ</span><b>身份</b></button>
+      <button class="step-dot" data-step="2" onclick="goStep(2)"><span>Ⅲ</span><b>天赋</b></button>
+      <button class="step-dot" data-step="3" onclick="goStep(3)"><span>Ⅳ</span><b>继承</b></button>
+      <button class="step-dot" data-step="4" onclick="goStep(4)"><span>Ⅴ</span><b>确认</b></button>
+    </nav>
+
+    <section class="stage-shell">
+      <div class="stage active" data-stage="0">
+        <div class="stage-head"><span class="cn">选择世界</span><span class="en">World Archive</span></div>
+        <div class="scroll" id="worldList">
+          <article class="card active" data-world="地球 Online" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅰ</div>
+            <div class="card-top"><span class="tag">Realistic Low Fantasy</span><span class="code">推荐 / 长线</span></div>
+            <h2>地球 Online</h2>
+            <p class="desc">现代社会低魔环境。家庭、职业、阶层与偶然事件构成人生主变量。</p>
+            <div class="chips"><span class="chip">现实成长</span><span class="chip">家庭羁绊</span><span class="chip">阶层跃迁</span><span class="chip">都市异闻</span><span class="chip">未来邮件</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：现实成长、家庭压力、职业路线与少量异常事件。</p>
+              <div class="world-config"><button class="active">现代</button><button>古代</button><button>远古</button></div>
+            </div>
+          </article>
+
+          <article class="card" data-world="修仙世界" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅱ</div>
+            <div class="card-top"><span class="tag">Cultivation Fate</span><span class="code">高随机 / 高寿命</span></div>
+            <h2>修仙世界</h2>
+            <p class="desc">灵根、宗门、秘境与天劫共同塑造一生。凡骨亦可逆天。</p>
+            <div class="chips"><span class="chip">灵根</span><span class="chip">宗门</span><span class="chip">秘境</span><span class="chip">因果债</span><span class="chip">飞升</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：灵根、宗门、秘境、功法与天劫。</p>
+              <div class="world-config"><button class="active">宗门</button><button>散修</button><button>魔道</button></div>
+            </div>
+          </article>
+
+          <article class="card" data-world="真武世界" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅲ</div>
+            <div class="card-top"><span class="tag">Martial Jianghu</span><span class="code">战斗 / 声望</span></div>
+            <h2>真武世界</h2>
+            <p class="desc">血气成炉，拳意入骨。武馆、边军、江湖声望决定成长轨迹。</p>
+            <div class="chips"><span class="chip">武馆</span><span class="chip">江湖</span><span class="chip">边军</span><span class="chip">名声</span><span class="chip">拳意</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：武馆、江湖、边军、声望与武学突破。</p>
+              <div class="world-config"><button class="active">武馆</button><button>军伍</button><button>江湖</button></div>
+            </div>
+          </article>
+
+          <article class="card" data-world="赛博灵朝" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅳ</div>
+            <div class="card-top"><span class="tag">Custom Saved</span><span class="code">自定义 / 已保存</span></div>
+            <h2>赛博灵朝</h2>
+            <p class="desc">义体科技与香火神权并存。功德、债务与寿命都可交易。</p>
+            <div class="chips"><span class="chip">义体</span><span class="chip">神龛网络</span><span class="chip">功德债</span><span class="chip">数字香火</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：义体、神龛网络、功德债务与数字香火。</p>
+              <div class="world-config"><button class="active">义体</button><button>香火</button><button>反神权</button></div>
+            </div>
+          </article>
+
+          <article class="card" data-world="末日方舟城" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅴ</div>
+            <div class="card-top"><span class="tag">Doomsday City</span><span class="code">生存 / 高压</span></div>
+            <h2>末日方舟城</h2>
+            <p class="desc">资源衰竭后的高墙城市。配给、感染与迁徙许可决定生路。</p>
+            <div class="chips"><span class="chip">配给</span><span class="chip">感染</span><span class="chip">高墙</span><span class="chip">黑市</span><span class="chip">迁徙许可</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：配给、感染、高墙、黑市与迁徙许可。</p>
+              <div class="world-config"><button class="active">拾荒</button><button>墙卫</button><button>医生</button></div>
+            </div>
+          </article>
+
+          <article class="card" data-world="神话复苏" onclick="selectWorld(this)">
+            <div class="card-mark">Ⅵ</div>
+            <div class="card-top"><span class="tag">Myth Awakening</span><span class="code">神秘 / 现代</span></div>
+            <h2>神话复苏</h2>
+            <p class="desc">现代神话实体逐步苏醒。神裔、调查员与旧神代理人开始出现。</p>
+            <div class="chips"><span class="chip">神裔</span><span class="chip">调查局</span><span class="chip">旧神</span><span class="chip">献祭</span><span class="chip">理智</span></div>
+            <div class="world-detail">
+              <p class="desc">基础设定：神裔、调查局、旧神、秘仪与理智污染。</p>
+              <div class="world-config"><button class="active">调查员</button><button>神裔</button><button>信徒</button></div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="stage" data-stage="1">
+        <div class="stage-head"><span class="cn">设定身份</span><span class="en">Identity Vessel</span></div>
+        <div class="scroll">
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">01 / Name</span><span class="label-cn">姓名</span></div>
+            <input id="nameInput" class="input-oracle" type="text" placeholder="输入你的初始姓名，例如：周砚">
+          </div>
+
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">02 / Gender</span><span class="label-cn">性别</span></div>
+            <div class="segmented" id="genderGroup">
+              <button class="active" onclick="selectSegment(this, 'gender')">男</button>
+              <button onclick="selectSegment(this, 'gender')">女</button>
+              <button onclick="selectSegment(this, 'gender')">未知</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">03 / Age</span><span class="label-cn">开局年龄</span></div>
+            <div class="segmented" id="ageGroup">
+              <button onclick="selectSegment(this, 'age')">幼年</button>
+              <button class="active" onclick="selectSegment(this, 'age')">少年</button>
+              <button onclick="selectSegment(this, 'age')">成年</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">04 / Personality</span><span class="label-cn">性格底色</span></div>
+            <div class="custom-select" id="personalitySelect" data-value="冷静克制">
+              <button class="select-trigger" type="button" onclick="toggleCustomSelect('personalitySelect')">冷静克制</button>
+              <div class="select-menu">
+                <button class="select-option active" type="button" onclick="chooseCustomSelect('personalitySelect', this, '冷静克制')">冷静克制</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('personalitySelect', this, '野心强烈')">野心强烈</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('personalitySelect', this, '温柔敏感')">温柔敏感</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('personalitySelect', this, '叛逆孤勇')">叛逆孤勇</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('personalitySelect', this, '功利现实')">功利现实</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('personalitySelect', this, '理想主义')">理想主义</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">05 / Desire</span><span class="label-cn">核心欲望</span></div>
+            <div class="custom-select" id="desireSelect" data-value="改变命运">
+              <button class="select-trigger" type="button" onclick="toggleCustomSelect('desireSelect')">改变命运</button>
+              <div class="select-menu">
+                <button class="select-option active" type="button" onclick="chooseCustomSelect('desireSelect', this, '改变命运')">改变命运</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('desireSelect', this, '守护家人')">守护家人</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('desireSelect', this, '获得力量')">获得力量</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('desireSelect', this, '追求真相')">追求真相</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('desireSelect', this, '积累财富')">积累财富</button>
+                <button class="select-option" type="button" onclick="chooseCustomSelect('desireSelect', this, '摆脱控制')">摆脱控制</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label"><span class="label-en">06 / Note</span><span class="label-cn">自定义设定</span></div>
+            <textarea class="textarea-oracle" id="customNote" placeholder="可写下角色秘密、前世记忆、家庭背景、恐惧、执念或禁忌。"></textarea>
+          </div>
+
+          <div class="stage-head"><span class="cn">初始属性</span><span class="en">Base Attributes</span></div>
+          <div class="attribute-panel">
+            <div class="attr-list">
+              <div class="attr-card" data-attr="body">
+                <div class="attr-name"><b>体魄</b><span>BODY</span></div>
+                <div class="attr-meter"><div class="attr-track" id="trackBody" style="--value:7"></div><div class="attr-meta"><span id="tagBody">均衡</span><span>上限 10</span></div></div>
+                <div class="attr-control"><button onclick="changeAttr('body', -1)">−</button><div class="attr-value" id="attrBody">07</div><button onclick="changeAttr('body', 1)">＋</button></div>
+              </div>
+
+              <div class="attr-card" data-attr="mind">
+                <div class="attr-name"><b>悟性</b><span>MIND</span></div>
+                <div class="attr-meter"><div class="attr-track" id="trackMind" style="--value:9"></div><div class="attr-meta"><span id="tagMind">优势</span><span>上限 10</span></div></div>
+                <div class="attr-control"><button onclick="changeAttr('mind', -1)">−</button><div class="attr-value" id="attrMind">09</div><button onclick="changeAttr('mind', 1)">＋</button></div>
+              </div>
+
+              <div class="attr-card" data-attr="charm">
+                <div class="attr-name"><b>魅力</b><span>CHARM</span></div>
+                <div class="attr-meter"><div class="attr-track" id="trackCharm" style="--value:6"></div><div class="attr-meta"><span id="tagCharm">普通</span><span>上限 10</span></div></div>
+                <div class="attr-control"><button onclick="changeAttr('charm', -1)">−</button><div class="attr-value" id="attrCharm">06</div><button onclick="changeAttr('charm', 1)">＋</button></div>
+              </div>
+
+              <div class="attr-card" data-attr="fate">
+                <div class="attr-name"><b>气运</b><span>FATE</span></div>
+                <div class="attr-meter"><div class="attr-track" id="trackFate" style="--value:8"></div><div class="attr-meta"><span id="tagFate">均衡</span><span>上限 10</span></div></div>
+                <div class="attr-control"><button onclick="changeAttr('fate', -1)">−</button><div class="attr-value" id="attrFate">08</div><button onclick="changeAttr('fate', 1)">＋</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage" data-stage="2">
+        <div class="stage-head"><span class="cn">天赋抽取</span><span class="en">Talent Oracle</span></div>
+        <div class="scroll">
+          <article class="talent-altar">
+            <div class="draw-orb" id="drawOrb" onclick="drawTalents()"><span>抽取</span></div>
+            <div class="draw-status" id="drawStatus">点击圆印，抽取三项开局天赋。</div>
+            <div class="talent-slots" id="talentSlots">
+              <div class="talent-slot">空位</div>
+              <div class="talent-slot">空位</div>
+              <div class="talent-slot">空位</div>
+            </div>
+          </article>
+
+          <div class="talent-grid" id="talentGrid">
+            <article class="talent-card">
+              <div class="rarity">Awaiting / 未抽取</div>
+              <h3>命运池沉默</h3>
+              <p>点击上方圆印后，命运池将显现三项天赋。</p>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage" data-stage="3">
+        <div class="stage-head"><span class="cn">技能继承</span><span class="en">Legacy Inheritance</span></div>
+        <div class="scroll">
+          <article class="inherit-hero">
+            <div class="inherit-head">
+              <div>
+                <h2>旧生遗产</h2>
+                <p>从已结束的人生中选择最多三项遗产。技能、法宝、残卷或特殊印记会以低阶形态进入新人生。</p>
+              </div>
+              <div class="legacy-quota" id="legacyQuota">3</div>
+            </div>
+            <div class="inherit-slots" id="legacySlots">
+              <div class="inherit-slot">空位</div>
+              <div class="inherit-slot">空位</div>
+              <div class="inherit-slot">空位</div>
+            </div>
+          </article>
+
+          <div class="legacy-tabs">
+            <button class="legacy-tab active" onclick="switchLegacyTab(this, 'skillPanel')">技能</button>
+            <button class="legacy-tab" onclick="switchLegacyTab(this, 'artifactPanel')">法宝</button>
+            <button class="legacy-tab" onclick="switchLegacyTab(this, 'scrollPanel')">残卷</button>
+            <button class="legacy-tab" onclick="switchLegacyTab(this, 'markPanel')">印记</button>
+          </div>
+
+          <div class="legacy-panel active" id="skillPanel">
+            <article class="legacy-item" data-mark="技" onclick="selectLegacy(this)">
+              <div class="rarity">Skill / From 周砚</div>
+              <h3>竞赛直觉</h3>
+              <p>遇到学习、推理、考试、技术路线时，获得更高的关键判断概率。</p>
+              <span class="legacy-source">来源：地球 Online · 暴雨夜线</span>
+            </article>
+            <article class="legacy-item" data-mark="技" onclick="selectLegacy(this)">
+              <div class="rarity">Skill / From 沈问刀</div>
+              <h3>败后调息</h3>
+              <p>失败或受伤后，下一次成长判定略微提升。</p>
+              <span class="legacy-source">来源：真武世界 · 一败之后</span>
+            </article>
+            <article class="legacy-item" data-mark="技" onclick="selectLegacy(this)">
+              <div class="rarity">Skill / From 许知微</div>
+              <h3>谈判余温</h3>
+              <p>商业、交易、求助、协商类事件中更容易保留退路。</p>
+              <span class="legacy-source">来源：地球 Online · 风停之后</span>
+            </article>
+          </div>
+
+          <div class="legacy-panel" id="artifactPanel">
+            <article class="legacy-item" data-mark="宝" onclick="selectLegacy(this)">
+              <div class="rarity">Artifact / From 林照夜</div>
+              <h3>裂纹命灯</h3>
+              <p>濒临重大失败时，提供一次微弱预警。不可直接逆天改命。</p>
+              <span class="legacy-source">来源：修仙世界 · 外门残灯</span>
+            </article>
+            <article class="legacy-item" data-mark="宝" onclick="selectLegacy(this)">
+              <div class="rarity">Artifact / From 赛博灵朝</div>
+              <h3>旧式香火芯片</h3>
+              <p>可记录一次重要承诺，并在未来关系事件中触发回响。</p>
+              <span class="legacy-source">来源：赛博灵朝 · 神龛债务</span>
+            </article>
+          </div>
+
+          <div class="legacy-panel" id="scrollPanel">
+            <article class="legacy-item" data-mark="卷" onclick="selectLegacy(this)">
+              <div class="rarity">Scroll / Incomplete</div>
+              <h3>《半页观心诀》</h3>
+              <p>面对诱惑、恐惧、愤怒时，获得一次低强度自省判定。</p>
+              <span class="legacy-source">来源：修仙世界 · 旧藏残卷</span>
+            </article>
+            <article class="legacy-item" data-mark="卷" onclick="selectLegacy(this)">
+              <div class="rarity">Scroll / Fragment</div>
+              <h3>方舟城配给手册</h3>
+              <p>资源紧缺事件中，更容易找到替代方案或隐藏渠道。</p>
+              <span class="legacy-source">来源：末日方舟城 · 墙内档案</span>
+            </article>
+          </div>
+
+          <div class="legacy-panel" id="markPanel">
+            <article class="legacy-item" data-mark="印" onclick="selectLegacy(this)">
+              <div class="rarity">Mark / Special</div>
+              <h3>未寄出的信</h3>
+              <p>新人生中更容易触发“迟来的消息”“错过的人”“旧日真相”。</p>
+              <span class="legacy-source">来源：地球 Online · 未来邮件</span>
+            </article>
+            <article class="legacy-item" data-mark="印" onclick="selectLegacy(this)">
+              <div class="rarity">Mark / Special</div>
+              <h3>败者心痕</h3>
+              <p>第一次重大失败不会只造成损失，也会开启隐藏成长线。</p>
+              <span class="legacy-source">来源：真武世界 · 断刀之日</span>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage" data-stage="4">
+        <div class="stage-head"><span class="cn">确认命线</span><span class="en">Final Chronicle</span></div>
+        <div class="scroll">
+          <div class="summary-card">
+            <div class="summary-line"><span>世界</span><b id="sumWorld">地球 Online</b></div>
+            <div class="summary-line"><span>姓名</span><b id="sumName">无名者</b></div>
+            <div class="summary-line"><span>性别</span><b id="sumGender">男</b></div>
+            <div class="summary-line"><span>开局</span><b id="sumAge">少年</b></div>
+            <div class="summary-line"><span>性格</span><b id="sumPersonality">冷静克制</b></div>
+            <div class="summary-line"><span>欲望</span><b id="sumDesire">改变命运</b></div>
+            <div class="summary-line"><span>天赋</span><b id="sumTalents">未抽取</b></div>
+            <div class="summary-line"><span>继承</span><b id="sumLegacy">未选择</b></div>
+            <div class="summary-line"><span>出身</span><b>由 AI 随机生成</b></div>
+          </div>
+
+          <article class="card">
+            <div class="card-top"><span class="tag">Opening Prophecy</span><span class="code">开局预言</span></div>
+            <h3>第一声回响</h3>
+            <p class="desc" id="openingText">你将从一个看似普通的夜晚开始。命运不会立刻揭开真相，它只会先递给你一个微小而难以忽视的选择。</p>
+            <div class="chips"><span class="chip">关键节点</span><span class="chip">长期因果</span><span class="chip">隐藏变量</span><span class="chip">人生模拟</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bottom-actions">
+      <button class="btn-ghost" onclick="prevStep()">返回</button>
+      <button class="btn-primary" id="nextBtn" onclick="nextStep()">确认世界</button>
+    </footer>
+  </main>
+
+  <div class="sheet-mask" id="sheetMask" onclick="closeSheet(event)">
+    <section class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-mark"></div>
+      <h2 id="sheetTitle">标题</h2>
+      <p id="sheetText">内容</p>
+      <div class="sheet-actions">
+        <button onclick="hideSheet()">返回</button>
+        <button class="enter" onclick="enterSheet()">确认</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast">命运已回应</div>
+
+  <script>
+    let step = 0;
+    let toastTimer = null;
+    let selectedWorld = '地球 Online';
+    let lockedTalents = false;
+    const attrs = { body: 7, mind: 9, charm: 6, fate: 8 };
+    const attrBase = { body: 7, mind: 9, charm: 6, fate: 8 };
+    const attrPoolTotal = 10;
+
+    const talentPools = [
+      [
+        ['Rare / 稀有', '早慧之眼', '学习、推理与理解速度提升。少年期更易触发知识节点，也更容易看见选择背后的长期代价。'],
+        ['Epic / 史诗', '命硬如石', '遭遇重大危机时，获得一次额外转机判定。你不会轻易被一次失败击倒，但命运会记住这次偏移。'],
+        ['Rare / 稀有', '人群回声', '更容易与他人形成长期羁绊。贵人、朋友与敌人都会更早出现，也更容易卷入他人的因果。']
+      ],
+      [
+        ['Epic / 史诗', '迟来的天命', '前期平凡甚至受挫，但中后期更容易出现翻盘节点。越晚觉醒，回响越猛烈。'],
+        ['Rare / 稀有', '不合时宜的善良', '你做出的善举更容易获得长期回报，但短期往往要付出更高代价，甚至改变原本安全的路线。'],
+        ['Legend / 传说', '因果旁观者', '更容易察觉隐藏因果与关键伏笔。干预越多，命运反噬越强，但也可能改写原定终局。']
+      ],
+      [
+        ['Rare / 稀有', '败者心', '失败后成长速度提升。连续失败不会只带来惩罚，也可能触发新的执念、复仇线或特殊转折。'],
+        ['Epic / 史诗', '贵人不绝', '低谷时更容易遇到愿意伸手的人。但每一次帮助都会形成关系债务，未来可能要求偿还。'],
+        ['Rare / 稀有', '危险直觉', '危机前有概率获得模糊预警。它不会告诉你答案，只会让你提前感到某种不对劲。']
+      ],
+      [
+        ['Legend / 传说', '天外来信', '关键年龄会收到来自未来、异界或未知存在的信息。每次使用信息，都会生成新的因果债。'],
+        ['Epic / 史诗', '冷眼热心', '更容易看穿他人动机，也更容易在关键时刻做出违背利益的善举。理性与温度会同时影响命运。'],
+        ['Rare / 稀有', '旧梦残响', '梦中偶尔出现未发生的人生片段。它们可能是预兆，也可能是另一条命线留下的噪音。']
+      ]
+    ];
+
+    let selectedLegacy = [];
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
+    }
+
+    function updateStep() {
+      document.querySelectorAll('.stage').forEach((stage, index) => stage.classList.toggle('active', index === step));
+      document.querySelectorAll('.step-dot').forEach((dot, index) => {
+        dot.classList.toggle('active', index === step);
+        dot.classList.toggle('done', index < step);
+      });
+
+      const labels = ['确认世界', '写入身份', '确认天赋', '确认继承', '开始回响'];
+      document.getElementById('nextBtn').textContent = labels[step];
+      if (step === 4) updateSummary();
+    }
+
+    function goStep(index) {
+      step = index;
+      updateStep();
+    }
+
+    function nextStep() {
+      if (step === 3) {
+        const activeCount = document.querySelectorAll('#talentGrid .talent-card.active').length;
+        if (activeCount === 0) {
+          toast('请先抽取至少一项天赋');
+          return;
+        }
+        lockedTalents = true;
+        document.querySelectorAll('#talentGrid .talent-card.active').forEach(card => card.classList.add('locked'));
+        document.getElementById('drawStatus').textContent = '天赋已确认，命运将以此为开局底色。';
+        toast('天赋已确认');
+      }
+
+      if (step < 4) {
+        step++;
+        updateStep();
+        return;
+      }
+      openSheet('命线已写入', '新的人生即将开始。系统将根据你的世界、身份、天赋与继承遗产生成出身和第一段命运回响。');
+    }
+
+    function prevStep() {
+      if (step > 0) {
+        step--;
+        updateStep();
+      } else {
+        openSheet('返回主厅', '当前新建人生尚未完成，返回后将丢失未保存的命运设定。');
+      }
+    }
+
+    function selectWorld(el) {
+      document.querySelectorAll('#worldList .card').forEach(card => card.classList.remove('active'));
+      el.classList.add('active');
+      selectedWorld = el.dataset.world;
+      toast('已选择：' + selectedWorld);
+    }
+
+    function selectSegment(button, group) {
+      button.parentElement.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      toast('已选择：' + button.textContent.trim());
+    }
+
+    function toggleCustomSelect(id) {
+      document.querySelectorAll('.custom-select').forEach(select => {
+        if (select.id !== id) select.classList.remove('open');
+      });
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    function chooseCustomSelect(id, button, value) {
+      const select = document.getElementById(id);
+      select.dataset.value = value;
+      select.querySelector('.select-trigger').textContent = value;
+      select.querySelectorAll('.select-option').forEach(option => option.classList.remove('active'));
+      button.classList.add('active');
+      select.classList.remove('open');
+      toast('已选择：' + value);
+    }
+
+    function attrTag(value) {
+      if (value <= 3) return '薄弱';
+      if (value <= 6) return '普通';
+      if (value <= 8) return '均衡';
+      if (value === 9) return '优势';
+      return '上限';
+    }
+
+    function usedExtraPoints() {
+      return Object.keys(attrs).reduce((sum, key) => sum + Math.max(0, attrs[key] - attrBase[key]), 0);
+    }
+
+    function renderAttrTrack(key) {
+      const ids = {
+        body: ['attrBody', 'tagBody', 'trackBody'],
+        mind: ['attrMind', 'tagMind', 'trackMind'],
+        charm: ['attrCharm', 'tagCharm', 'trackCharm'],
+        fate: ['attrFate', 'tagFate', 'trackFate']
+      };
+      const [numId, tagId, trackId] = ids[key];
+      const value = attrs[key];
+      document.getElementById(numId).textContent = String(value).padStart(2, '0');
+      document.getElementById(tagId).textContent = attrTag(value);
+      document.getElementById(trackId).style.setProperty('--value', value);
+    }
+
+    function renderAllAttrs() {
+      ['body', 'mind', 'charm', 'fate'].forEach(renderAttrTrack);
+      document.getElementById('poolNum').textContent = Math.max(0, attrPoolTotal - usedExtraPoints());
+    }
+
+    function changeAttr(key, delta) {
+      if (delta > 0 && usedExtraPoints() >= attrPoolTotal) {
+        toast('命格点数已用尽');
+        return;
+      }
+      if (attrs[key] + delta < 0 || attrs[key] + delta > 10) {
+        toast('属性范围为 0-10');
+        return;
+      }
+      attrs[key] += delta;
+      renderAllAttrs();
+      toast('属性已调整');
+    }
+
+    function selectOption(el, group) {
+      el.parentElement.querySelectorAll('.option-card').forEach(card => card.classList.remove('active'));
+      el.classList.add('active');
+      toast('已选择：' + el.querySelector('h3').textContent);
+    }
+
+    function switchLegacyTab(button, panelId) {
+      document.querySelectorAll('.legacy-tab').forEach(tab => tab.classList.remove('active'));
+      button.classList.add('active');
+      document.querySelectorAll('.legacy-panel').forEach(panel => panel.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+    }
+
+    function selectLegacy(el) {
+      const name = el.querySelector('h3').textContent;
+      const exists = selectedLegacy.includes(name);
+      if (!exists && selectedLegacy.length >= 3) {
+        toast('最多继承三项遗产');
+        return;
+      }
+      el.classList.toggle('active');
+      selectedLegacy = exists ? selectedLegacy.filter(item => item !== name) : [...selectedLegacy, name];
+      updateLegacySlots();
+      toast(exists ? '已移除继承' : '已加入继承');
+    }
+
+    function updateLegacySlots() {
+      document.getElementById('legacyQuota').textContent = 3 - selectedLegacy.length;
+      document.getElementById('legacySlots').innerHTML = [0,1,2].map(index => {
+        return selectedLegacy[index]
+          ? `<div class="inherit-slot filled">${selectedLegacy[index]}</div>`
+          : `<div class="inherit-slot">空位</div>`;
+      }).join('');
+    }
+
+    function selectTalent(el) {
+      if (lockedTalents) {
+        toast('天赋已锁定');
+        return;
+      }
+      el.classList.toggle('active');
+      const activeCount = document.querySelectorAll('#talentGrid .talent-card.active').length;
+      if (activeCount > 3) {
+        el.classList.remove('active');
+        toast('最多保留三项天赋');
+        return;
+      }
+      updateTalentSlots();
+      toast(el.classList.contains('active') ? '已保留天赋' : '已移除天赋');
+    }
+
+    function updateTalentSlots() {
+      const talents = Array.from(document.querySelectorAll('#talentGrid .talent-card.active h3')).map(item => item.textContent);
+      document.getElementById('talentSlots').innerHTML = [0,1,2].map(index => {
+        return talents[index]
+          ? `<div class="talent-slot filled">${talents[index]}</div>`
+          : `<div class="talent-slot">空位</div>`;
+      }).join('');
+    }
+
+    function drawTalents() {
+      if (lockedTalents) {
+        toast('天赋已确认，无法重新抽取');
+        return;
+      }
+      const orb = document.getElementById('drawOrb');
+      const status = document.getElementById('drawStatus');
+      orb.classList.add('drawing');
+      status.textContent = '命运池正在翻涌……';
+      document.getElementById('talentGrid').innerHTML = '';
+      document.getElementById('talentSlots').innerHTML = `
+        <div class="talent-slot">演算中</div>
+        <div class="talent-slot">演算中</div>
+        <div class="talent-slot">演算中</div>
+      `;
+
+      setTimeout(() => {
+        const pool = talentPools[Math.floor(Math.random() * talentPools.length)];
+        document.getElementById('talentGrid').innerHTML = pool.map(item => `
+          <article class="talent-card active" onclick="selectTalent(this)">
+            <div class="rarity">${item[0]}</div>
+            <h3>${item[1]}</h3>
+            <p>${item[2]}</p>
+          </article>
+        `).join('');
+        orb.classList.remove('drawing');
+        status.textContent = '已抽取三项天赋。点击卡片可保留或移除，底部确认天赋。';
+        updateTalentSlots();
+        toast('天赋已显现');
+      }, 900);
+    }
+
+    function rerollTalents() {
+      drawTalents();
+    }
+
+    function getActiveText(selector) {
+      const active = document.querySelector(selector + ' .active');
+      if (!active) return '未设定';
+      if (active.tagName === 'BUTTON') return active.textContent.trim();
+      const h3 = active.querySelector('h3');
+      return h3 ? h3.textContent.trim() : active.textContent.trim();
+    }
+
+    function updateSummary() {
+      const name = document.getElementById('nameInput').value.trim() || '无名者';
+      document.getElementById('sumWorld').textContent = selectedWorld;
+      document.getElementById('sumName').textContent = name;
+      document.getElementById('sumGender').textContent = getActiveText('#genderGroup');
+      document.getElementById('sumAge').textContent = getActiveText('#ageGroup');
+      document.getElementById('sumPersonality').textContent = document.getElementById('personalitySelect').dataset.value;
+      document.getElementById('sumDesire').textContent = document.getElementById('desireSelect').dataset.value;
+      const talents = Array.from(document.querySelectorAll('#talentGrid .talent-card.active h3')).map(item => item.textContent);
+      document.getElementById('sumTalents').textContent = talents.join(' / ') || '未选择';
+      document.getElementById('sumLegacy').textContent = selectedLegacy.join(' / ') || '未选择';
+
+      const world = selectedWorld;
+      const desire = document.getElementById('desireSelect').dataset.value;
+      document.getElementById('openingText').textContent = `你将在「${world}」中醒来。你的核心欲望是「${desire}」，但命运不会直接满足它，只会先递给你一个看似微小、实则会改变人生走向的选择。`;
+    }
+
+    function randomAll() {
+      const names = ['周砚', '林照夜', '沈问刀', '许知微', '陈既白', '姜闻溪'];
+      document.getElementById('nameInput').value = names[Math.floor(Math.random() * names.length)];
+      const personalityOptions = ['冷静克制', '野心强烈', '温柔敏感', '叛逆孤勇', '功利现实', '理想主义'];
+      const desireOptions = ['改变命运', '守护家人', '获得力量', '追求真相', '积累财富', '摆脱控制'];
+      setCustomSelectValue('personalitySelect', personalityOptions[Math.floor(Math.random() * personalityOptions.length)]);
+      setCustomSelectValue('desireSelect', desireOptions[Math.floor(Math.random() * desireOptions.length)]);
+      lockedTalents = false;
+      drawTalents();
+      toast('已随机生成命运种子');
+    }
+
+    function setCustomSelectValue(id, value) {
+      const select = document.getElementById(id);
+      select.dataset.value = value;
+      select.querySelector('.select-trigger').textContent = value;
+      select.querySelectorAll('.select-option').forEach(option => {
+        option.classList.toggle('active', option.textContent.trim() === value);
+      });
+    }
+
+    function openSheet(title, text) {
+      document.getElementById('sheetTitle').textContent = title;
+      document.getElementById('sheetText').textContent = text;
+      document.getElementById('sheetMask').classList.add('show');
+    }
+
+    function hideSheet() { document.getElementById('sheetMask').classList.remove('show'); }
+    function closeSheet(event) { if (event.target.id === 'sheetMask') hideSheet(); }
+    function enterSheet() { hideSheet(); toast('进入命运演算'); }
+
+    updateStep();
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "life-echo",
+  "version": "1.0.0",
+  "description": "人生回响 - AI人生模拟器游戏",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "test": "npm run test:api && npm run test:web",
+    "db:migrate": "cd apps/api && npx prisma migrate dev",
+    "db:studio": "cd apps/api && npx prisma studio",
+    "db:generate": "cd apps/api && npx prisma generate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
