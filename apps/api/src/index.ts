@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
+import savesRoutes from './routes/saves.routes';
+import aiRoutes from './routes/ai.routes';
 
 dotenv.config();
 
@@ -18,6 +20,8 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/saves', savesRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 全局错误处理
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

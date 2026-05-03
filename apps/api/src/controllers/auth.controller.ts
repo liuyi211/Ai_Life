@@ -122,6 +122,8 @@ export const authController = {
           fateFragments: true,
           totalPlayTime: true,
           generationCount: true,
+          aiProvider: true,
+          aiModel: true,
           createdAt: true,
         },
       });
