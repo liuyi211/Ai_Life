@@ -82,37 +82,4 @@ function validateBackup(data: unknown): data is BackupData {
   return true;
 }
 
-/**
- * 比较两个存档数据源，返回应该使用哪一个
- * 策略：优先使用更新时间更新的那个
- * 如果本地备份更新，但验证失败，则回退到后端数据
- */
-export function resolveSaveSource(
-  backendSave: Record<string, unknown> | null,
-  localBackup: BackupData | null
-): { source: 'backend' | 'local'; data: Record<string, unknown> } | null {
-  if (!backendSave && !localBackup) return null;
 
-  const backendTime =
-    typeof backendSave?.updatedAt === 'string'
-      ? new Date(backendSave.updatedAt).getTime()
-      : 0;
-  const localTime = localBackup?.timestamp || 0;
-
-  // 本地备份更新且有效
-  if (localBackup && localTime > backendTime) {
-    return { source: 'local', data: localBackup.state };
-  }
-
-  // 后端数据有效
-  if (backendSave) {
-    return { source: 'backend', data: backendSave };
-  }
-
-  // 只有本地备份但比后端旧（理论上不应发生，除非后端时间为0）
-  if (localBackup) {
-    return { source: 'local', data: localBackup.state };
-  }
-
-  return null;
-}

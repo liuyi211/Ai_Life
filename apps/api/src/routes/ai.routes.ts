@@ -13,7 +13,10 @@ router.post('/test', authMiddleware, aiController.testConnection);
 // AI 生成服务
 router.post('/background', authMiddleware, aiController.generateBackground);
 router.post('/narrative', authMiddleware, aiController.generateNarrative);
+router.post('/narrative/stream', authMiddleware, aiController.generateNarrativeStream);
 router.post('/choices', authMiddleware, aiController.generateChoices);
 router.post('/chat', authMiddleware, aiController.chatWithNPC);
+router.post('/world', authMiddleware, aiController.generateWorld);
+router.get('/prophecy', authMiddleware, aiController.generateProphecy);
 
 export default router;

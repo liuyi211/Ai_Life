@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import savesRoutes from './routes/saves.routes';
+import settlementRoutes from './routes/settlement.routes';
+import legacyRoutes from './routes/legacy.routes';
 import aiRoutes from './routes/ai.routes';
 
 dotenv.config();
@@ -21,6 +23,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/saves', savesRoutes);
+app.use('/api/saves', settlementRoutes);
+app.use('/api/legacy', legacyRoutes);
 app.use('/api/ai', aiRoutes);
 
 // 全局错误处理

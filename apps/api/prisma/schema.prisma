@@ -15,6 +15,7 @@ model User {
   fateFragments     Int               @default(0)
   totalPlayTime     Int               @default(0)
   generationCount   Int               @default(0)
+  legacy            Json[]            @default([])
   aiProvider        String?
   aiApiKeyEncrypted String?
   aiModel           String?

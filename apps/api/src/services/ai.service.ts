@@ -23,6 +23,11 @@ export interface AIResponse {
   };
 }
 
+export interface AIStreamChunk {
+  text: string;
+  done: boolean;
+}
+
 // 提供商默认配置
 const PROVIDER_DEFAULTS: Record<AIProvider, { baseUrl: string; defaultModel: string; models: string[] }> = {
   deepseek: {
@@ -82,6 +87,29 @@ export class AIService {
     }
   }
 
+  /**
+   * 流式调用 AI API
+   * 返回 AsyncGenerator，每次 yield 一个文本片段
+   */
+  async *streamChat(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
+    switch (this.config.provider) {
+      case 'deepseek':
+        yield* this.streamDeepSeek(messages);
+        break;
+      case 'openai':
+        yield* this.streamOpenAI(messages);
+        break;
+      case 'claude':
+        yield* this.streamClaude(messages);
+        break;
+      case 'custom':
+        yield* this.streamCustom(messages);
+        break;
+      default:
+        throw new Error(`不支持的 AI 提供商: ${this.config.provider}`);
+    }
+  }
+
   private async callDeepSeek(messages: AIMessage[]): Promise<AIResponse> {
     const response = await axios.post(
       `${this.getBaseUrl()}/chat/completions`,
@@ -128,6 +156,207 @@ export class AIService {
       content: response.data.choices[0]?.message?.content || '',
       usage: response.data.usage,
     };
+  }
+
+  // ==================== 流式调用实现 ====================
+
+  private async *streamDeepSeek(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const response = await axios.post(
+      `${this.getBaseUrl()}/chat/completions`,
+      {
+        model: this.config.model || PROVIDER_DEFAULTS.deepseek.defaultModel,
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+        stream: true,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+        timeout: 30000,
+      }
+    );
+
+    yield* this.parseOpenAIStream(response.data);
+  }
+
+  private async *streamOpenAI(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const response = await axios.post(
+      `${this.getBaseUrl()}/chat/completions`,
+      {
+        model: this.config.model || PROVIDER_DEFAULTS.openai.defaultModel,
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+        stream: true,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+        timeout: 30000,
+      }
+    );
+
+    yield* this.parseOpenAIStream(response.data);
+  }
+
+  private async *streamClaude(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const systemMessage = messages.find((m) => m.role === 'system');
+    const userMessages = messages.filter((m) => m.role !== 'system');
+
+    const response = await axios.post(
+      `${this.getBaseUrl()}/messages`,
+      {
+        model: this.config.model || PROVIDER_DEFAULTS.claude.defaultModel,
+        messages: userMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        system: systemMessage?.content,
+        max_tokens: 2000,
+        stream: true,
+      },
+      {
+        headers: {
+          'x-api-key': this.config.apiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+        },
+        responseType: 'stream',
+        timeout: 30000,
+      }
+    );
+
+    yield* this.parseClaudeStream(response.data);
+  }
+
+  private async *streamCustom(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const response = await axios.post(
+      `${this.getBaseUrl()}/chat/completions`,
+      {
+        model: this.config.model || 'default',
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+        stream: true,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'stream',
+        timeout: 30000,
+      }
+    );
+
+    yield* this.parseOpenAIStream(response.data);
+  }
+
+  /**
+   * 解析 OpenAI 兼容格式的 SSE 流
+   */
+  private async *parseOpenAIStream(stream: any): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const reader = stream;
+    let buffer = '';
+
+    for await (const chunk of reader) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+        const data = trimmed.slice(6);
+        if (data === '[DONE]') {
+          yield { text: '', done: true };
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content || '';
+          if (content) {
+            yield { text: content, done: false };
+          }
+        } catch {
+          // 忽略解析失败的行
+        }
+      }
+    }
+
+    // 处理剩余缓冲区
+    if (buffer.trim()) {
+      const trimmed = buffer.trim();
+      if (trimmed.startsWith('data: ')) {
+        const data = trimmed.slice(6);
+        if (data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || '';
+            if (content) {
+              yield { text: content, done: false };
+            }
+          } catch {
+            // 忽略
+          }
+        }
+      }
+    }
+
+    yield { text: '', done: true };
+  }
+
+  /**
+   * 解析 Claude SSE 流
+   */
+  private async *parseClaudeStream(stream: any): AsyncGenerator<AIStreamChunk, void, unknown> {
+    const reader = stream;
+    let buffer = '';
+
+    for await (const chunk of reader) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let currentEvent: string | null = null;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          currentEvent = null;
+          continue;
+        }
+
+        if (trimmed.startsWith('event: ')) {
+          currentEvent = trimmed.slice(7);
+          continue;
+        }
+
+        if (trimmed.startsWith('data: ') && currentEvent === 'content_block_delta') {
+          const data = trimmed.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed.delta?.text || '';
+            if (text) {
+              yield { text, done: false };
+            }
+          } catch {
+            // 忽略
+          }
+        }
+      }
+    }
+
+    yield { text: '', done: true };
   }
 
   private async callClaude(messages: AIMessage[]): Promise<AIResponse> {

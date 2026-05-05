@@ -14,6 +14,7 @@ export default function CreationPage() {
     step,
     form,
     drawing,
+    drawnTalents,
     sheetOpen,
     sheetTitle,
     sheetText,
@@ -26,6 +27,8 @@ export default function CreationPage() {
     updateForm,
     updateAttribute,
     drawTalents,
+    redrawTalents,
+    toggleTalent,
     toggleLegacy,
     randomAll,
     handleCreate,
@@ -171,9 +174,12 @@ export default function CreationPage() {
         )}
         {step === 2 && (
           <StepTalent
-            talents={form.talents}
+            drawnTalents={drawnTalents}
+            selectedTalents={form.talents}
             drawing={drawing}
             onDraw={drawTalents}
+            onRedraw={redrawTalents}
+            onToggle={toggleTalent}
           />
         )}
         {step === 3 && (

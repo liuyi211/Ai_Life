@@ -1,22 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LegacyItem } from '../data';
-import { LEGACY_DATA } from '../data';
+import { legacyApi } from '../../../services/api';
 
 interface StepLegacyProps {
   selected: LegacyItem[];
   onToggle: (item: LegacyItem) => void;
 }
 
-const TABS = [
-  { key: 'skill', label: '技能' },
-  { key: 'artifact', label: '法宝' },
-  { key: 'scroll', label: '残卷' },
-  { key: 'mark', label: '印记' },
-];
-
 export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
-  const [activeTab, setActiveTab] = useState('skill');
-  const quota = 3 - selected.length;
+  const [userLegacy, setUserLegacy] = useState<LegacyItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const quota = 2 - selected.length;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await legacyApi.list();
+        if (res.data.success) {
+          setUserLegacy(res.data.legacy || []);
+        }
+      } catch {
+        // 忽略错误
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center" style={{ animation: 'fadeUp .34s ease both' }}>
+        <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px' }}>加载遗产中...</span>
+      </div>
+    );
+  }
+
+  if (userLegacy.length === 0) {
+    return (
+      <div className="flex flex-col h-full" style={{ animation: 'fadeUp .34s ease both' }}>
+        <div className="flex justify-between items-end" style={{ marginBottom: '11px' }}>
+          <span style={{ color: '#221d18', fontSize: '16px', letterSpacing: '3px' }}>技能继承</span>
+          <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>Legacy Inheritance</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div style={{ textAlign: 'center', color: '#948879', fontSize: '13px', lineHeight: '1.8' }}>
+            <p>暂无可用遗产</p>
+            <p style={{ fontSize: '12px', marginTop: '8px' }}>完成一次人生轮回后将自动保存遗产</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ animation: 'fadeUp .34s ease both' }}>
@@ -79,7 +114,7 @@ export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
                   letterSpacing: '.8px',
                 }}
               >
-                从已结束的人生中选择最多三项遗产。技能、法宝、残卷或特殊印记会以低阶形态进入新人生。
+                从已保存的遗产中选择最多两项带入新人生。遗产在上一次轮回结算时自动保存。
               </p>
             </div>
             <div
@@ -96,8 +131,8 @@ export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
             </div>
           </div>
 
-          <div className="relative grid" style={{ zIndex: 1, gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px' }}>
-            {[0, 1, 2].map((i) => (
+          <div className="relative grid" style={{ zIndex: 1, gridTemplateColumns: 'repeat(2, 1fr)', gap: '7px' }}>
+            {[0, 1].map((i) => (
               <div
                 key={i}
                 style={{
@@ -121,42 +156,13 @@ export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
           </div>
         </article>
 
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            border: '1px solid rgba(34,29,24,0.13)',
-            marginBottom: '10px',
-          }}
-        >
-          {TABS.map((tab, i) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                height: '40px',
-                border: 'none',
-                borderRight: i < 3 ? '1px solid rgba(34,29,24,0.13)' : 'none',
-                background: activeTab === tab.key ? '#221d18' : 'rgba(248,244,236,0.22)',
-                color: activeTab === tab.key ? '#f8f4ec' : '#948879',
-                fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif",
-                fontSize: '13px',
-                letterSpacing: '2px',
-                cursor: 'pointer',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
         <div>
-          {LEGACY_DATA[activeTab]?.map((item) => {
+          {userLegacy.map((item: any) => {
             const isSelected = selected.some((s) => s.name === item.name);
             return (
               <article
                 key={item.name}
-                onClick={() => onToggle(item)}
+                onClick={() => onToggle(item as LegacyItem)}
                 className="relative"
                 style={{
                   border: '1px solid',
@@ -181,10 +187,10 @@ export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
                     pointerEvents: 'none',
                   }}
                 >
-                  {item.mark}
+                  {item.mark || '◆'}
                 </div>
                 <div style={{ color: '#7a2020', fontSize: '11px', letterSpacing: '1.5px', marginBottom: '5px' }}>
-                  {item.rarity}
+                  {item.rarity || '普通'}
                 </div>
                 <h3
                   style={{
@@ -218,7 +224,7 @@ export default function StepLegacy({ selected, onToggle }: StepLegacyProps) {
                     letterSpacing: '1px',
                   }}
                 >
-                  {item.source}
+                  {item.source || '旧生遗产'}
                 </span>
               </article>
             );

@@ -90,7 +90,7 @@ export default function DashboardPage() {
       <section className="scroll flex-1 min-h-0 overflow-y-auto" style={{ paddingRight: '3px' }}>
         {activeTab === 'home' && <HomeTab showToast={showToast} />}
         {activeTab === 'archive' && <ArchiveTab showToast={showToast} />}
-        {activeTab === 'codex' && <CodexTab openSheet={openSheet} />}
+        {activeTab === 'codex' && <CodexTab />}
         {activeTab === 'profile' && <ProfileTab openSheet={openSheet} onLogout={handleLogout} showToast={showToast} />}
       </section>
 

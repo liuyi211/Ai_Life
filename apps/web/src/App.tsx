@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import CreationPage from './pages/creation/CreationPage';
 import GamePage from './pages/GamePage';
+import SettlementPage from './pages/SettlementPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -25,6 +26,11 @@ function App() {
         <Route path="/game" element={
           <PrivateRoute>
             <GamePage />
+          </PrivateRoute>
+        } />
+        <Route path="/settlement" element={
+          <PrivateRoute>
+            <SettlementPage />
           </PrivateRoute>
         } />
         <Route

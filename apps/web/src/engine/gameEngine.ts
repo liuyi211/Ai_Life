@@ -4,9 +4,25 @@
 
 export type LifeStage = 'infant' | 'child' | 'youth' | 'adult' | 'elder';
 
+// ==================== 天赋信息 ====================
+export interface TalentInfo {
+  name: string;
+  desc: string;
+  rarity?: string;
+}
+
+// ==================== 遗产信息 ====================
+export interface LegacyInfo {
+  name: string;
+  desc: string;
+  rarity?: string;
+  source?: string;
+}
+
 export interface GameCharacter {
   name: string;
   world: string;
+  worldConfig?: string;     // 世界配置（如"宗门"/"散修"/"魔道"）
   gender: string;
   age: number;
   lifeStage: LifeStage;
@@ -18,8 +34,8 @@ export interface GameCharacter {
     charm: number;
     fate: number;
   };
-  talents: string[];
-  legacy: string[];
+  talents: TalentInfo[];    // 完整天赋信息（含描述）
+  legacy: LegacyInfo[];     // 完整遗产信息（含描述）
   isAlive: boolean;
 }
 
@@ -192,6 +208,37 @@ export function applyChoiceEffects(
   };
 }
 
+/** 兼容处理：将旧存档的字符串数组或混合数组转换为 TalentInfo[] */
+function normalizeTalents(talents: any[]): TalentInfo[] {
+  if (!Array.isArray(talents)) return [];
+  return talents.map((t: any) => {
+    if (typeof t === 'string') {
+      return { name: t, desc: '', rarity: '' };
+    }
+    return {
+      name: t.name || '未知天赋',
+      desc: t.desc || '',
+      rarity: t.rarity || '',
+    };
+  });
+}
+
+/** 兼容处理：将旧存档的字符串数组或混合数组转换为 LegacyInfo[] */
+function normalizeLegacy(legacy: any[]): LegacyInfo[] {
+  if (!Array.isArray(legacy)) return [];
+  return legacy.map((l: any) => {
+    if (typeof l === 'string') {
+      return { name: l, desc: '', rarity: '', source: '' };
+    }
+    return {
+      name: l.name || '未知遗产',
+      desc: l.desc || '',
+      rarity: l.rarity || '',
+      source: l.source || '',
+    };
+  });
+}
+
 function clampAttribute(value: number): number {
   return Math.max(1, Math.min(20, value));
 }
@@ -357,8 +404,9 @@ export function createGameStateFromSave(saveData: any): GameState {
         charm: character.attributes?.charm || 5,
         fate: character.attributes?.fate || 5,
       },
-      talents: (character.talents || []).map((t: any) => t.name || t),
-      legacy: (character.legacy || []).map((l: any) => l.name || l),
+      talents: normalizeTalents(character.talents),
+      legacy: normalizeLegacy(character.legacy),
+      worldConfig: character.worldConfig || '',
       isAlive: character.isAlive !== undefined ? character.isAlive : true,
     },
     lifeStatus: saveData.lifeStatus || createDefaultLifeStatus(),
@@ -377,14 +425,15 @@ export function serializeGameState(state: GameState): any {
     character: {
       name: state.character.name,
       world: state.character.world,
+      worldConfig: state.character.worldConfig,
       gender: state.character.gender,
       age: state.character.age,
       lifeStage: state.character.lifeStage,
       personality: state.character.personality,
       desire: state.character.desire,
       attributes: state.character.attributes,
-      talents: state.character.talents,
-      legacy: state.character.legacy,
+      talents: state.character.talents.map(t => ({ name: t.name, desc: t.desc, rarity: t.rarity })),
+      legacy: state.character.legacy.map(l => ({ name: l.name, desc: l.desc, rarity: l.rarity, source: l.source })),
       isAlive: state.character.isAlive,
     },
     lifeStatus: state.lifeStatus,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveApi } from '../../../services/api';
+import { saveApi, aiApi } from '../../../services/api';
 
 interface SaveData {
   id: string;
@@ -64,10 +64,58 @@ export default function HomeTab({ showToast }: HomeTabProps) {
   const [loading, setLoading] = useState(false);
   const [activeSave, setActiveSave] = useState<SaveData | null>(null);
   const [loadingSave, setLoadingSave] = useState(true);
+  const [prophecy, setProphecy] = useState<string>('命运不是一扇门，而是一条逐渐收紧的线。你每一次迟疑，都会成为后来故事的形状。');
+  const [prophecyLoading, setProphecyLoading] = useState(false);
 
   useEffect(() => {
     loadActiveSave();
+    loadDailyProphecy();
   }, []);
+
+  // 获取每日谶语：按日期缓存，过期重新生成；失败当天不再重试
+  const loadDailyProphecy = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = `daily_prophecy_${today}`;
+    const failKey = `daily_prophecy_fail_${today}`;
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached) {
+      setProphecy(cached);
+      return;
+    }
+
+    // 今天已经请求失败过，不再重复请求
+    if (localStorage.getItem(failKey)) {
+      return;
+    }
+
+    setProphecyLoading(true);
+    try {
+      const res = await aiApi.generateProphecy();
+      if (res.data.success && res.data.prophecy) {
+        const text = res.data.prophecy;
+        setProphecy(text);
+        localStorage.setItem(cacheKey, text);
+        cleanupOldProphecyCache(today);
+      }
+    } catch {
+      // API 失败时标记今天不再重试，避免控制台 spam
+      localStorage.setItem(failKey, '1');
+    } finally {
+      setProphecyLoading(false);
+    }
+  };
+
+  const cleanupOldProphecyCache = (today: string) => {
+    for (let i = 7; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const day = date.toISOString().slice(0, 10);
+      localStorage.removeItem(`daily_prophecy_${day}`);
+      localStorage.removeItem(`daily_prophecy_fail_${day}`);
+    }
+  };
+
 
   const loadActiveSave = async () => {
     setLoadingSave(true);
@@ -494,13 +542,14 @@ export default function HomeTab({ showToast }: HomeTabProps) {
         <p
           style={{
             margin: 0,
-            color: '#5a5047',
+            color: prophecyLoading ? '#948879' : '#5a5047',
             fontSize: '13px',
             lineHeight: '1.75',
             letterSpacing: '1px',
+            fontStyle: prophecyLoading ? 'italic' : 'normal',
           }}
         >
-          命运不是一扇门，而是一条逐渐收紧的线。你每一次迟疑，都会成为后来故事的形状。
+          {prophecyLoading ? '正在聆听命运的低语...' : prophecy}
         </p>
       </article>
 

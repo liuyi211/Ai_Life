@@ -144,17 +144,13 @@ export default function GamePage() {
 
   // 保存游戏状态（后端 + 本地双写）
   const saveGameState = useCallback(async (state: GameState, currentSaveId: string | null) => {
-    if (!currentSaveId) {
-      console.error('No saveId available to save game state');
-      return;
-    }
+    if (!currentSaveId) return;
     try {
       const serialized = serializeGameState(state);
       // 同时保存到后端和本地，确保任一通道成功都能恢复
       await saveApi.update(currentSaveId, serialized);
       saveLocalBackup(state, currentSaveId);
-    } catch (err) {
-      console.error('Backend save failed, falling back to local:', err);
+    } catch {
       // 后端保存失败时，至少保存到本地
       saveLocalBackup(state, currentSaveId);
     }
@@ -314,7 +310,7 @@ export default function GamePage() {
                       }, 600);
                     }
                   } catch {
-                    console.log('Initial choices generation failed');
+                    // 初始选择生成失败，静默处理
                   }
                 }
 
@@ -561,7 +557,7 @@ export default function GamePage() {
             }, 400);
           }
         } catch {
-          console.log('AI choices generation failed');
+          // AI选择生成失败，静默处理
         }
       }
 

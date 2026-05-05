@@ -1,5 +1,5 @@
-import type { CreationForm, WorldConfig } from '../data';
-import { WORLDS } from '../data';
+import type { CreationForm } from '../data';
+import { useWorldStore, type WorldData } from '../../../stores/worldStore';
 
 interface StepWorldProps {
   form: CreationForm;
@@ -7,6 +7,8 @@ interface StepWorldProps {
 }
 
 export default function StepWorld({ form, onChange }: StepWorldProps) {
+  const allWorlds = useWorldStore((state) => state.allWorlds);
+
   return (
     <div className="flex flex-col h-full" style={{ animation: 'fadeUp .34s ease both' }}>
       <div className="flex justify-between items-end" style={{ marginBottom: '11px' }}>
@@ -14,7 +16,7 @@ export default function StepWorld({ form, onChange }: StepWorldProps) {
         <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>World Archive</span>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingRight: '3px' }}>
-        {WORLDS.map((world) => (
+        {allWorlds.map((world) => (
           <WorldCard
             key={world.id}
             world={world}
@@ -39,7 +41,7 @@ function WorldCard({
   onSelect,
   onConfigChange,
 }: {
-  world: WorldConfig;
+  world: WorldData;
   selected: boolean;
   currentConfig: string;
   onSelect: () => void;
@@ -200,6 +202,7 @@ function WorldCard({
                   e.stopPropagation();
                   onConfigChange(opt);
                 }}
+                title={opt}
                 style={{
                   height: '30px',
                   border: '1px solid',
@@ -210,6 +213,10 @@ function WorldCard({
                   fontSize: '11px',
                   letterSpacing: '.5px',
                   cursor: 'pointer',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  padding: '0 6px',
                 }}
               >
                 {opt}

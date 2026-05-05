@@ -1,12 +1,13 @@
 import type { CreationForm } from '../data';
-import { WORLDS } from '../data';
+import { useWorldStore } from '../../../stores/worldStore';
 
 interface StepConfirmProps {
   form: CreationForm;
 }
 
 export default function StepConfirm({ form }: StepConfirmProps) {
-  const world = WORLDS.find((w) => w.id === form.world);
+  const allWorlds = useWorldStore((state) => state.allWorlds);
+  const world = allWorlds.find((w) => w.id === form.world);
   const talentText = form.talents.length > 0
     ? form.talents.map((t) => t.name).join('、')
     : '未抽取';
@@ -35,8 +36,6 @@ export default function StepConfirm({ form }: StepConfirmProps) {
             { label: '姓名', value: form.name || '无名者' },
             { label: '性别', value: form.gender },
             { label: '开局', value: form.age },
-            { label: '性格', value: form.personality },
-            { label: '欲望', value: form.desire },
             { label: '天赋', value: talentText },
             { label: '继承', value: legacyText },
             { label: '出身', value: '由 AI 随机生成' },

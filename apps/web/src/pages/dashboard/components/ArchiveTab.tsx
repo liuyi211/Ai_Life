@@ -169,7 +169,13 @@ export default function ArchiveTab({ showToast }: ArchiveTabProps) {
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
-                onClick={() => handleContinue(save.id)}
+                onClick={() => {
+                  if (save.gameStatus === 'dead' || !save.character.isAlive) {
+                    navigate(`/settlement?saveId=${save.id}`);
+                  } else {
+                    handleContinue(save.id);
+                  }
+                }}
                 style={{
                   padding: '8px 14px',
                   border: '1px solid rgba(34,29,24,0.28)',
@@ -180,7 +186,7 @@ export default function ArchiveTab({ showToast }: ArchiveTabProps) {
                   cursor: 'pointer',
                 }}
               >
-                进入
+                {save.gameStatus === 'dead' || !save.character.isAlive ? '查看回响' : '进入'}
               </button>
               <button
                 onClick={() => handleDelete(save.id)}

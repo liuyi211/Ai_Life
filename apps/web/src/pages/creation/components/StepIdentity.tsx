@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import type { CreationForm } from '../data';
-import { PERSONALITIES, DESIRES, AGES, GENDERS, ATTR_CONFIG } from '../data';
+import { AGES, GENDERS, ATTR_CONFIG } from '../data';
 
 interface StepIdentityProps {
   form: CreationForm;
@@ -72,36 +71,10 @@ export default function StepIdentity({ form, onChange, onAttrChange }: StepIdent
           />
         </div>
 
-        {/* Personality */}
-        <div style={{ marginBottom: '19px' }}>
-          <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
-            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>04 / Personality</span>
-            <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>性格底色</span>
-          </div>
-          <CustomSelect
-            options={PERSONALITIES}
-            value={form.personality}
-            onChange={(v) => onChange({ personality: v })}
-          />
-        </div>
-
-        {/* Desire */}
-        <div style={{ marginBottom: '19px' }}>
-          <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
-            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>05 / Desire</span>
-            <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>核心欲望</span>
-          </div>
-          <CustomSelect
-            options={DESIRES}
-            value={form.desire}
-            onChange={(v) => onChange({ desire: v })}
-          />
-        </div>
-
         {/* Custom Note */}
         <div style={{ marginBottom: '19px' }}>
           <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
-            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>06 / Note</span>
+            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>04 / Note</span>
             <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>自定义设定</span>
           </div>
           <textarea
@@ -304,77 +277,4 @@ function SegmentedControl({
   );
 }
 
-function CustomSelect({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
 
-  return (
-    <div className="relative" style={{ width: '100%', borderBottom: '1px solid rgba(34,29,24,0.18)' }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          height: '46px',
-          border: 'none',
-          background: 'transparent',
-          color: '#221d18',
-          fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif",
-          fontSize: '19px',
-          letterSpacing: '1px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 0,
-          cursor: 'pointer',
-        }}
-      >
-        {value}
-        <span style={{ fontSize: '18px', transform: open ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform .22s ease', color: open ? '#7a2020' : '#221d18' }}>⌄</span>
-      </button>
-
-      {open && (
-        <div
-          className="grid"
-          style={{
-            position: 'relative',
-            zIndex: 8,
-            marginTop: '8px',
-            border: '1px solid rgba(34,29,24,0.28)',
-            background: '#f3eddf',
-            boxShadow: '0 16px 38px rgba(34,29,24,0.13)',
-            padding: '6px',
-            gap: '4px',
-          }}
-        >
-          {options.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => { onChange(opt); setOpen(false); }}
-              style={{
-                height: '38px',
-                border: 'none',
-                background: value === opt ? '#221d18' : 'transparent',
-                color: value === opt ? '#f8f4ec' : '#5a5047',
-                textAlign: 'left',
-                padding: '0 10px',
-                fontFamily: "'Noto Serif SC', serif",
-                fontSize: '14px',
-                letterSpacing: '1px',
-                cursor: 'pointer',
-              }}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

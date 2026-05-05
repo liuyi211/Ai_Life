@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../../stores/authStore';
 import AIConfigSheet from './AIConfigSheet';
+import LegacySheet from './LegacySheet';
 
 interface ProfileTabProps {
   openSheet: (title: string, text: string) => void;
@@ -32,6 +33,7 @@ const PROFILE_ITEMS = [
 export default function ProfileTab({ openSheet, onLogout, showToast }: ProfileTabProps) {
   const user = useAuthStore((state) => state.user);
   const [aiConfigOpen, setAiConfigOpen] = useState(false);
+  const [legacyOpen, setLegacyOpen] = useState(false);
 
   return (
     <div className="tab-page active" style={{ animation: 'fadeUp .32s ease both' }}>
@@ -234,6 +236,8 @@ export default function ProfileTab({ openSheet, onLogout, showToast }: ProfileTa
               e.stopPropagation();
               if (item.name === '模型接入') {
                 setAiConfigOpen(true);
+              } else if (item.name === '继承遗产') {
+                setLegacyOpen(true);
               } else {
                 openSheet(item.sheetTitle, item.sheetText);
               }
@@ -342,6 +346,11 @@ export default function ProfileTab({ openSheet, onLogout, showToast }: ProfileTa
       <AIConfigSheet
         isOpen={aiConfigOpen}
         onClose={() => setAiConfigOpen(false)}
+        showToast={showToast}
+      />
+      <LegacySheet
+        isOpen={legacyOpen}
+        onClose={() => setLegacyOpen(false)}
         showToast={showToast}
       />
     </div>
