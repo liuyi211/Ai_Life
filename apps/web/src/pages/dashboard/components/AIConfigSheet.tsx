@@ -10,9 +10,33 @@ interface AIConfigSheetProps {
 const PROVIDERS = [
   { id: 'deepseek', name: 'DeepSeek' },
   { id: 'openai', name: 'OpenAI' },
-  { id: 'claude', name: 'Claude' },
+  { id: 'anthropic', name: 'Claude (Anthropic)' },
+  { id: 'google', name: 'Google Gemini' },
+  { id: 'moonshot', name: 'Kimi (Moonshot)' },
+  { id: 'qwen', name: '通义千问 (Qwen)' },
+  { id: 'doubao', name: '豆包 (火山引擎)' },
+  { id: 'zhipu', name: '智谱 AI (GLM)' },
+  { id: 'ernie', name: '文心一言 (ERNIE)' },
+  { id: 'azure', name: 'Azure OpenAI' },
+  { id: 'ollama', name: 'Ollama (本地)' },
   { id: 'custom', name: '自定义' },
 ];
+
+// 各厂商默认 Base URL
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  deepseek: 'https://api.deepseek.com/v1',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  moonshot: 'https://api.moonshot.cn/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  ernie: 'https://qianfan.baidubce.com/v2',
+  azure: '',
+  ollama: 'http://localhost:11434/v1',
+  custom: '',
+};
 
 type TestResult = { success: boolean; message: string } | null;
 
@@ -20,9 +44,11 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
   const [provider, setProvider] = useState('deepseek');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [hasKey, setHasKey] = useState(false);
   const [savedProvider, setSavedProvider] = useState('');
   const [savedModel, setSavedModel] = useState('');
+  const [savedBaseUrl, setSavedBaseUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -34,8 +60,20 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
       loadConfig();
       setTestResult(null);
       setApiKey('');
+      setBaseUrl('');
     }
   }, [isOpen]);
+
+  // 切换厂商时自动填充默认 Base URL
+  const handleProviderChange = (newProvider: string) => {
+    setProvider(newProvider);
+    const defaultUrl = DEFAULT_BASE_URLS[newProvider];
+    if (defaultUrl) {
+      setBaseUrl(defaultUrl);
+    } else {
+      setBaseUrl('');
+    }
+  };
 
   const loadConfig = async () => {
     setLoading(true);
@@ -48,6 +86,8 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
         setSavedProvider(p);
         setModel(config.model || '');
         setSavedModel(config.model || '');
+        setBaseUrl(config.baseUrl || DEFAULT_BASE_URLS[p] || '');
+        setSavedBaseUrl(config.baseUrl || '');
         setHasKey(config.hasApiKey);
       }
     } catch (err) {
@@ -70,11 +110,13 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
         provider,
         apiKey: apiKey || undefined,
         model: model || undefined,
+        baseUrl: baseUrl || undefined,
       });
       showToast('配置已保存');
       setHasKey(true);
       setSavedProvider(provider);
       setSavedModel(model);
+      setSavedBaseUrl(baseUrl);
       setApiKey('');
     } catch (err: any) {
       showToast(err.response?.data?.message || '保存失败');
@@ -94,8 +136,10 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
       setHasKey(false);
       setSavedProvider('');
       setSavedModel('');
+      setSavedBaseUrl('');
       setApiKey('');
       setModel('');
+      setBaseUrl('');
     } catch (err: any) {
       showToast(err.response?.data?.message || '清除失败');
     } finally {
@@ -115,7 +159,7 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
     try {
       const res = await aiApi.testConnection(
         testKey
-          ? { provider, apiKey: testKey, model: model || undefined }
+          ? { provider, apiKey: testKey, model: model || undefined, baseUrl: baseUrl || undefined }
           : undefined
       );
       if (res.data.success) {
@@ -248,6 +292,12 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
                         {savedModel}
                       </div>
                     )}
+                    {savedBaseUrl && (
+                      <div style={{ fontSize: '13px', color: '#5a5047' }}>
+                        <span style={{ color: '#948879' }}>接口地址：</span>
+                        {savedBaseUrl}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={handleClear}
@@ -284,7 +334,7 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
                 </label>
                 <select
                   value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
+                  onChange={(e) => handleProviderChange(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -334,6 +384,40 @@ export default function AIConfigSheet({ isOpen, onClose, showToast }: AIConfigSh
                     outline: 'none',
                   }}
                 />
+              </div>
+
+              {/* Base URL Input */}
+              <div style={{ marginBottom: '20px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: '#948879',
+                    fontSize: '12px',
+                    letterSpacing: '2px',
+                  }}
+                >
+                  接口地址 (Base URL)
+                </label>
+                <input
+                  type="text"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '1px solid rgba(34,29,24,0.28)',
+                    background: 'rgba(248,244,236,0.32)',
+                    color: '#221d18',
+                    fontSize: '14px',
+                    fontFamily: "'Noto Serif SC', serif",
+                    outline: 'none',
+                  }}
+                />
+                <p style={{ margin: '6px 0 0', color: '#948879', fontSize: '11px' }}>
+                  切换厂商时会自动填充默认地址，可手动修改为私有化部署或代理地址
+                </p>
               </div>
 
               {/* API Key Input */}

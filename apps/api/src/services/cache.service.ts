@@ -10,38 +10,61 @@ interface CacheEntry<T> {
 
 export class MemoryCache<T = any> {
   private cache = new Map<string, CacheEntry<T>>();
+  private pendingGenerations = new Map<string, Promise<T>>();
   private defaultTTL: number;
 
   constructor(defaultTTLMs: number = 60 * 60 * 1000) {
-    // 默认 1 小时
     this.defaultTTL = defaultTTLMs;
   }
 
-  /**
-   * 获取缓存值
-   */
   get(key: string): T | undefined {
     const entry = this.cache.get(key);
     if (!entry) return undefined;
-
-    // 检查是否过期
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return undefined;
     }
-
     return entry.value;
   }
 
-  /**
-   * 设置缓存值
-   */
   set(key: string, value: T, ttlMs?: number): void {
     const ttl = ttlMs ?? this.defaultTTL;
-    this.cache.set(key, {
-      value,
-      expiresAt: Date.now() + ttl,
-    });
+    this.cache.set(key, { value, expiresAt: Date.now() + ttl });
+  }
+
+  /**
+   * 获取或生成缓存值（防竞态）
+   * - 缓存命中 → 直接返回
+   * - 正在生成中 → await 同一个 Promise（不会重复触发）
+   * - 未命中也不在生成 → 调用 generator 生成并缓存
+   */
+  async getOrGenerate(
+    key: string,
+    generator: () => Promise<T>,
+    ttlMs?: number,
+  ): Promise<T> {
+    // 1. 缓存命中
+    const cached = this.get(key);
+    if (cached !== undefined) return cached;
+
+    // 2. 正在生成中，复用已有 Promise
+    const pending = this.pendingGenerations.get(key);
+    if (pending) return pending;
+
+    // 3. 新生成
+    const promise = generator()
+      .then((result) => {
+        this.set(key, result, ttlMs);
+        this.pendingGenerations.delete(key);
+        return result;
+      })
+      .catch((err) => {
+        this.pendingGenerations.delete(key);
+        throw err;
+      });
+
+    this.pendingGenerations.set(key, promise);
+    return promise;
   }
 
   /**

@@ -21,7 +21,7 @@ export const savesController = {
   async create(req: Request, res: Response) {
     try {
       const userId = (req as any).userId;
-      const { character, history, achievements, playTime, generation } = req.body;
+      const { character, history, achievements, playTime, generation, lifeStatus, gameStatus, currentEvent } = req.body;
 
       // 验证必要字段
       if (!character || !character.name) {
@@ -36,6 +36,9 @@ export const savesController = {
           achievements: achievements || [],
           playTime: playTime || 0,
           generation: generation || 1,
+          lifeStatus: lifeStatus || null,
+          gameStatus: gameStatus || 'playing',
+          currentEvent: currentEvent || null,
           syncStatus: 'synced',
         },
       });
@@ -91,7 +94,7 @@ export const savesController = {
     try {
       const userId = (req as any).userId;
       const { id } = req.params;
-      const { character, history, achievements, playTime, generation, syncStatus } = req.body;
+      const { character, history, achievements, playTime, generation, syncStatus, lifeStatus, gameStatus, currentEvent } = req.body;
 
       const existing = await prisma.saveData.findFirst({
         where: { id, userId },
@@ -109,6 +112,9 @@ export const savesController = {
           achievements: achievements || existing.achievements,
           playTime: playTime !== undefined ? playTime : existing.playTime,
           generation: generation !== undefined ? generation : existing.generation,
+          lifeStatus: lifeStatus !== undefined ? lifeStatus : existing.lifeStatus,
+          gameStatus: gameStatus || existing.gameStatus,
+          currentEvent: currentEvent !== undefined ? currentEvent : existing.currentEvent,
           syncStatus: syncStatus || existing.syncStatus,
         },
       });

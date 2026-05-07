@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { encryptApiKey } from '../services/ai.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -136,6 +138,70 @@ export const authController = {
     } catch (error) {
       console.error('Get user error:', error);
       res.status(500).json({ success: false, message: '获取用户信息失败' });
+    }
+  },
+
+  // 访客登录（自动创建/复用 guest 账号，使用默认 API 配置）
+  async guestLogin(req: Request, res: Response) {
+    try {
+      const guestApiKey = process.env.GUEST_API_KEY;
+      const guestModel = process.env.GUEST_API_MODEL || 'deepseek-chat';
+      const guestProvider = process.env.GUEST_API_PROVIDER || 'deepseek';
+
+      if (!guestApiKey) {
+        return res.status(400).json({
+          success: false,
+          message: '未配置访客 API Key。请在 .env 中设置 GUEST_API_KEY',
+        });
+      }
+
+      // 查找或创建 guest 用户
+      let user = await prisma.user.findUnique({ where: { username: 'guest' } });
+
+      if (!user) {
+        const randomPassword = crypto.randomBytes(16).toString('hex');
+        user = await prisma.user.create({
+          data: {
+            username: 'guest',
+            passwordHash: await bcrypt.hash(randomPassword, 10),
+            aiProvider: guestProvider,
+            aiApiKeyEncrypted: encryptApiKey(guestApiKey),
+            aiModel: guestModel,
+          },
+        });
+      } else {
+        // 确保 API 配置保持最新
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            aiProvider: guestProvider,
+            aiApiKeyEncrypted: encryptApiKey(guestApiKey),
+            aiModel: guestModel,
+          },
+        });
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          avatar: user.avatar,
+          fateFragments: user.fateFragments,
+          totalPlayTime: user.totalPlayTime,
+          generationCount: user.generationCount,
+        },
+      });
+    } catch (error) {
+      console.error('Guest login error:', error);
+      res.status(500).json({ success: false, message: '访客登录失败' });
     }
   },
 };

@@ -37,6 +37,9 @@ export const authApi = {
     api.post('/auth/login', { username, password }),
   
   getMe: () => api.get('/auth/me'),
+
+  // 访客登录
+  guest: () => api.post('/auth/guest'),
 };
 
 export const saveApi = {
@@ -58,7 +61,7 @@ export interface StreamCallbacks {
 
 export const aiApi = {
   getConfig: () => api.get('/ai/config'),
-  updateConfig: (data: { provider: string; apiKey?: string; model?: string }) =>
+  updateConfig: (data: { provider: string; apiKey?: string; model?: string; baseUrl?: string }) =>
     api.put('/ai/config', data),
   clearConfig: () => api.delete('/ai/config'),
   testConnection: (data?: { provider?: string; apiKey?: string; model?: string }) =>
@@ -83,6 +86,10 @@ export const aiApi = {
     factions?: string;
   }) => api.post('/ai/world', data),
   generateProphecy: () => api.get('/ai/prophecy'),
+
+  // 生成死亡叙事
+  generateDeathNarrative: (data: { character: any; history?: any[]; deathCause: string; world: string }) =>
+    api.post('/ai/death', data),
 
   // 流式生成人生节点
   streamGenerateNarrative: (
@@ -210,6 +217,83 @@ export const settlementApi = {
   settle: (id: string, data: any) => api.post(`/saves/${id}/settle`, data),
   export: (id: string) => api.get(`/saves/${id}/export`),
   import: (data: any) => api.post('/saves/import', data),
+
+  // 生成人生总结（非流式）
+  generateSummary: (data: { character: any; history?: any[]; score?: number }) =>
+    api.post('/saves/summary', data),
+
+  // 流式生成人生总结
+  streamGenerateSummary: (
+    data: { character: any; history?: any[]; score?: number; achievements?: string[] },
+    callbacks: {
+      onStart?: () => void;
+      onChunk: (text: string) => void;
+      onComplete: (summary: string, title: string, gradeDesc: string) => void;
+      onError: (message: string) => void;
+    }
+  ) => {
+    const token = useAuthStore.getState().token;
+    fetch(`${API_BASE_URL}/saves/summary/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          callbacks.onError(errorData.message || `HTTP ${response.status}`);
+          return;
+        }
+        const reader = response.body?.getReader();
+        if (!reader) { callbacks.onError('无法读取流'); return; }
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let currentEvent: string | null = null;
+        let started = false;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) { currentEvent = null; continue; }
+            if (trimmed.startsWith('event: ')) { currentEvent = trimmed.slice(7).trim(); continue; }
+            if (trimmed.startsWith('data: ') && currentEvent) {
+              const dataStr = trimmed.slice(6);
+              try {
+                const eventData = JSON.parse(dataStr);
+                if (currentEvent === 'start' && !started) { started = true; callbacks.onStart?.(); }
+                else if (currentEvent === 'chunk' && eventData.text) { callbacks.onChunk(eventData.text); }
+                else if (currentEvent === 'complete') {
+                  callbacks.onComplete(
+                    eventData.summary || '',
+                    eventData.title || '',
+                    eventData.gradeDesc || ''
+                  );
+                  reader.cancel();
+                  return;
+                } else if (currentEvent === 'error') {
+                  callbacks.onError(eventData.message || '生成失败');
+                  reader.cancel();
+                  return;
+                }
+              } catch { /* skip */ }
+            }
+          }
+        }
+      })
+      .catch((error) => callbacks.onError(error.message || '网络请求失败'));
+  },
+
+  // AI 生成遗产
+  generateLegacies: (data: { character: any; history?: any[] }) =>
+    api.post('/saves/legacy/generate', data),
 };
 
 export const legacyApi = {

@@ -1,6 +1,20 @@
 import axios from 'axios';
 
-export type AIProvider = 'deepseek' | 'openai' | 'claude' | 'custom';
+export type AIProvider =
+  | 'openai'
+  | 'azure'
+  | 'anthropic'
+  | 'google'
+  | 'deepseek'
+  | 'moonshot'
+  | 'qwen'
+  | 'doubao'
+  | 'zhipu'
+  | 'ernie'
+  | 'ollama'
+  | 'custom'
+  // 保留旧别名以保持兼容
+  | 'claude';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -28,27 +42,99 @@ export interface AIStreamChunk {
   done: boolean;
 }
 
+// 使用 OpenAI 兼容 API 的厂商列表
+const OPENAI_COMPATIBLE_PROVIDERS: AIProvider[] = [
+  'openai',
+  'azure',
+  'google',
+  'deepseek',
+  'moonshot',
+  'qwen',
+  'doubao',
+  'zhipu',
+  'ernie',
+  'ollama',
+  'custom',
+];
+
 // 提供商默认配置
-const PROVIDER_DEFAULTS: Record<AIProvider, { baseUrl: string; defaultModel: string; models: string[] }> = {
-  deepseek: {
-    baseUrl: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
-  },
+const PROVIDER_DEFAULTS: Record<
+  AIProvider,
+  { baseUrl: string; defaultModel: string; models: string[] }
+> = {
   openai: {
     baseUrl: 'https://api.openai.com/v1',
     defaultModel: 'gpt-4o-mini',
     models: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
   },
-  claude: {
+  azure: {
+    baseUrl: 'https://{your-resource}.openai.azure.com/openai/deployments/{deployment-id}',
+    defaultModel: 'gpt-4o',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-35-turbo'],
+  },
+  anthropic: {
     baseUrl: 'https://api.anthropic.com/v1',
-    defaultModel: 'claude-3-sonnet-20240229',
-    models: ['claude-3-sonnet-20240229', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+    defaultModel: 'claude-3-5-sonnet-20241022',
+    models: [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-opus-20240229',
+      'claude-3-haiku-20240307',
+    ],
+  },
+  google: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaultModel: 'gemini-2.0-flash',
+    models: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'],
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-chat',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+  },
+  moonshot: {
+    baseUrl: 'https://api.moonshot.cn/v1',
+    defaultModel: 'moonshot-v1-8k',
+    models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  },
+  qwen: {
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-plus',
+    models: ['qwen-plus', 'qwen-max', 'qwen-turbo'],
+  },
+  doubao: {
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    defaultModel: 'doubao-pro-256k',
+    models: ['doubao-pro-256k', 'doubao-lite-128k', 'doubao-vision-pro'],
+  },
+  zhipu: {
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    defaultModel: 'glm-4',
+    models: ['glm-4', 'glm-4-plus', 'glm-4-flash'],
+  },
+  ernie: {
+    baseUrl: 'https://qianfan.baidubce.com/v2',
+    defaultModel: 'ernie-4.0-turbo',
+    models: ['ernie-4.0-turbo', 'ernie-3.5', 'ernie-speed'],
+  },
+  ollama: {
+    baseUrl: 'http://localhost:11434/v1',
+    defaultModel: 'llama3',
+    models: ['llama3', 'qwen2.5', 'deepseek-coder'],
   },
   custom: {
     baseUrl: '',
     defaultModel: '',
     models: [],
+  },
+  // 旧别名映射
+  claude: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    defaultModel: 'claude-3-5-sonnet-20241022',
+    models: [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-opus-20240229',
+      'claude-3-haiku-20240307',
+    ],
   },
 };
 
@@ -67,24 +153,40 @@ export class AIService {
     return [
       { id: 'deepseek', name: 'DeepSeek', description: '深度求索 - 国产大模型，性价比高' },
       { id: 'openai', name: 'OpenAI', description: 'ChatGPT - 全球领先的 AI 模型' },
-      { id: 'claude', name: 'Claude', description: 'Anthropic - 擅长长文本和推理' },
+      { id: 'anthropic', name: 'Claude (Anthropic)', description: 'Claude - 擅长长文本和推理' },
+      { id: 'google', name: 'Google Gemini', description: 'Gemini - Google 多模态大模型' },
+      { id: 'moonshot', name: 'Kimi (Moonshot)', description: '月之暗面 - 超长上下文窗口' },
+      { id: 'qwen', name: '通义千问 (Qwen)', description: '阿里云 - 开源大模型' },
+      { id: 'doubao', name: '豆包 (火山引擎)', description: '字节跳动 - 多模态大模型' },
+      { id: 'zhipu', name: '智谱 AI (GLM)', description: '智谱 - ChatGLM 系列' },
+      { id: 'ernie', name: '文心一言 (ERNIE)', description: '百度 - 中文大模型' },
+      { id: 'azure', name: 'Azure OpenAI', description: '微软 Azure - 企业级 OpenAI' },
+      { id: 'ollama', name: 'Ollama (本地)', description: '本地部署 - 开源模型' },
       { id: 'custom', name: '自定义', description: '兼容 OpenAI 格式的自定义 API' },
     ];
   }
 
+  /** 判断是否为 OpenAI 兼容格式的厂商 */
+  private isOpenAICompatible(): boolean {
+    return (
+      OPENAI_COMPATIBLE_PROVIDERS.includes(this.config.provider) ||
+      this.config.provider === 'claude'
+    );
+  }
+
+  /** 判断是否为 Claude 格式的厂商 */
+  private isClaudeFormat(): boolean {
+    return this.config.provider === 'anthropic' || this.config.provider === 'claude';
+  }
+
   async chat(messages: AIMessage[]): Promise<AIResponse> {
-    switch (this.config.provider) {
-      case 'deepseek':
-        return this.callDeepSeek(messages);
-      case 'openai':
-        return this.callOpenAI(messages);
-      case 'claude':
-        return this.callClaude(messages);
-      case 'custom':
-        return this.callCustom(messages);
-      default:
-        throw new Error(`不支持的 AI 提供商: ${this.config.provider}`);
+    if (this.isClaudeFormat()) {
+      return this.callClaude(messages);
     }
+    if (this.isOpenAICompatible()) {
+      return this.callOpenAI(messages);
+    }
+    throw new Error(`不支持的 AI 提供商: ${this.config.provider}`);
   }
 
   /**
@@ -92,22 +194,15 @@ export class AIService {
    * 返回 AsyncGenerator，每次 yield 一个文本片段
    */
   async *streamChat(messages: AIMessage[]): AsyncGenerator<AIStreamChunk, void, unknown> {
-    switch (this.config.provider) {
-      case 'deepseek':
-        yield* this.streamDeepSeek(messages);
-        break;
-      case 'openai':
-        yield* this.streamOpenAI(messages);
-        break;
-      case 'claude':
-        yield* this.streamClaude(messages);
-        break;
-      case 'custom':
-        yield* this.streamCustom(messages);
-        break;
-      default:
-        throw new Error(`不支持的 AI 提供商: ${this.config.provider}`);
+    if (this.isClaudeFormat()) {
+      yield* this.streamClaude(messages);
+      return;
     }
+    if (this.isOpenAICompatible()) {
+      yield* this.streamOpenAI(messages);
+      return;
+    }
+    throw new Error(`不支持的 AI 提供商: ${this.config.provider}`);
   }
 
   private async callDeepSeek(messages: AIMessage[]): Promise<AIResponse> {
@@ -124,7 +219,7 @@ export class AIService {
           'Authorization': `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -148,7 +243,7 @@ export class AIService {
           'Authorization': `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -176,7 +271,7 @@ export class AIService {
           'Content-Type': 'application/json',
         },
         responseType: 'stream',
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -199,7 +294,7 @@ export class AIService {
           'Content-Type': 'application/json',
         },
         responseType: 'stream',
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -229,7 +324,7 @@ export class AIService {
           'anthropic-version': '2023-06-01',
         },
         responseType: 'stream',
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -252,7 +347,7 @@ export class AIService {
           'Content-Type': 'application/json',
         },
         responseType: 'stream',
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -381,7 +476,7 @@ export class AIService {
           'Content-Type': 'application/json',
           'anthropic-version': '2023-06-01',
         },
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 
@@ -406,7 +501,7 @@ export class AIService {
           'Authorization': `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 30000,
+        timeout: 60000,
       }
     );
 

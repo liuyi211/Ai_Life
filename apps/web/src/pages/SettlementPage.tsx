@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { saveApi, aiApi, legacyApi } from '../services/api';
+import { saveApi, aiApi, legacyApi, settlementApi } from '../services/api';
 import LegacyReplaceModal from './components/LegacyReplaceModal';
 import type { GameState } from '../engine/gameEngine';
 import { createGameStateFromSave, serializeGameState } from '../engine/gameEngine';
@@ -30,25 +30,6 @@ function calculateScore(state: GameState): { total: number; grade: string } {
   return { total, grade };
 }
 
-function calculateInitialAttributes(state: GameState): Record<string, number> {
-  const initial = { ...state.character.attributes };
-  state.history.forEach(h => {
-    if (h.effects) {
-      Object.entries(h.effects).forEach(([k, v]) => {
-        if (v && (initial as any)[k] !== undefined) {
-          (initial as any)[k] -= v;
-        }
-      });
-    }
-  });
-  Object.keys(initial).forEach(k => {
-    if ((initial as any)[k] < 1 || (initial as any)[k] > 20) {
-      (initial as any)[k] = (state.character.attributes as any)[k];
-    }
-  });
-  return initial;
-}
-
 function getAttrLabel(key: string): string {
   const map: Record<string, string> = { body: '体魄', mind: '悟性', charm: '羁绊', fate: '气运' };
   return map[key] || key;
@@ -70,33 +51,32 @@ export default function SettlementPage() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [gradeDesc, setGradeDesc] = useState('');
   const [saveId, setSaveId] = useState<string | null>(null);
 
   // 遗产选择相关状态
+  const [aiLegacies, setAiLegacies] = useState<LegacyItem[]>([]);
+  const [legaciesLoading, setLegaciesLoading] = useState(false);
   const [selectedLegacy, setSelectedLegacy] = useState<Set<string>>(new Set());
   const [userLegacyCount, setUserLegacyCount] = useState(0);
   const [showReplaceModal, setShowReplaceModal] = useState(false);
   const [pendingLegacy, setPendingLegacy] = useState<LegacyItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [journeyExpanded, setJourneyExpanded] = useState(false);
+  const [legacySaved, setLegacySaved] = useState(false);
 
   const score = useMemo(() => {
     if (!gameState) return { total: 0, grade: 'C' };
     return calculateScore(gameState);
   }, [gameState]);
 
-  const initialAttributes = useMemo(() => {
-    if (!gameState) return {};
-    return calculateInitialAttributes(gameState);
-  }, [gameState]);
-
   useEffect(() => {
     const load = async () => {
       try {
         const sid = searchParams.get('saveId');
-        if (!sid) {
-          navigate('/');
-          return;
-        }
+        if (!sid) { navigate('/'); return; }
         setSaveId(sid);
 
         const res = await saveApi.getById(sid);
@@ -106,36 +86,82 @@ export default function SettlementPage() {
         // 加载用户当前遗产数量
         try {
           const legacyRes = await legacyApi.list();
-          if (legacyRes.data.success) {
-            setUserLegacyCount(legacyRes.data.count || 0);
+          if (legacyRes.data.success) setUserLegacyCount(legacyRes.data.count || 0);
+        } catch { /* 忽略 */ }
+
+        // 检查 localStorage 缓存
+        const cachedSummary = localStorage.getItem(`settlement_summary_${sid}`);
+        const cachedTitle = localStorage.getItem(`settlement_title_${sid}`);
+        const cachedGradeDesc = localStorage.getItem(`settlement_gradeDesc_${sid}`);
+        const cachedLegacies = localStorage.getItem(`settlement_legacies_${sid}`);
+
+        if (cachedSummary) {
+          // 已结算过，直接用缓存
+          setSummary(cachedSummary);
+          setTitle(cachedTitle || '');
+          setGradeDesc(cachedGradeDesc || '');
+          if (cachedLegacies) {
+            try { setAiLegacies(JSON.parse(cachedLegacies)); } catch { /* ignore */ }
           }
-        } catch {
-          // 忽略
+          setLoading(false);
+          return;
         }
 
-        // 调用AI生成人生总结
+        // 首次结算，检查 API Key
+        let hasApiKey = false;
         try {
           const configRes = await aiApi.getConfig();
-          if (configRes.data.config?.hasApiKey) {
-            const summaryRes = await aiApi.generateSummary({
-              character: {
-                name: state.character.name,
-                world: state.character.world,
-                age: state.character.age,
-                personality: state.character.personality,
-                desire: state.character.desire,
-                attributes: state.character.attributes,
-                talents: state.character.talents.map(t => typeof t === 'object' ? { name: t.name, desc: t.desc } : { name: t, desc: '' }),
-              },
+          hasApiKey = configRes.data.config?.hasApiKey || false;
+        } catch { /* 忽略 */ }
+
+        if (hasApiKey) {
+          const character = {
+            name: state.character.name,
+            world: state.character.world,
+            age: state.character.age,
+            personality: state.character.personality,
+            desire: state.character.desire,
+            attributes: state.character.attributes,
+            talents: state.character.talents.map(t =>
+              typeof t === 'object' ? { name: t.name, desc: t.desc } : { name: t, desc: '' }
+            ),
+          };
+
+          // 1. 调用 AI 生成人生总结、标题和评价
+          setSummaryLoading(true);
+          try {
+            const summaryRes = await settlementApi.generateSummary({
+              character,
               history: state.history,
               score: score.total,
             });
-            if (summaryRes.data.success && summaryRes.data.summary) {
-              setSummary(summaryRes.data.summary);
+            if (summaryRes.data.success) {
+              const s = summaryRes.data.summary || '';
+              const t = summaryRes.data.title || '';
+              const g = summaryRes.data.gradeDesc || '';
+              setSummary(s);
+              setTitle(t);
+              setGradeDesc(g);
+              localStorage.setItem(`settlement_summary_${sid}`, s);
+              if (t) localStorage.setItem(`settlement_title_${sid}`, t);
+              if (g) localStorage.setItem(`settlement_gradeDesc_${sid}`, g);
             }
-          }
-        } catch {
-          // AI 生成失败使用默认总结
+          } catch { /* 忽略 */ }
+          setSummaryLoading(false);
+
+          // 2. AI 生成遗产
+          setLegaciesLoading(true);
+          try {
+            const legacyRes = await settlementApi.generateLegacies({
+              character,
+              history: state.history,
+            });
+            if (legacyRes.data.success && legacyRes.data.legacies?.length > 0) {
+              setAiLegacies(legacyRes.data.legacies);
+              localStorage.setItem(`settlement_legacies_${sid}`, JSON.stringify(legacyRes.data.legacies));
+            }
+          } catch { /* 忽略 */ }
+          setLegaciesLoading(false);
         }
 
         setLoading(false);
@@ -152,7 +178,7 @@ export default function SettlementPage() {
       const next = new Set(prev);
       if (next.has(name)) {
         next.delete(name);
-      } else if (next.size < 2) {
+      } else if (next.size < 1) {
         next.add(name);
       }
       return next;
@@ -166,7 +192,10 @@ export default function SettlementPage() {
       .filter(([_, v]) => v >= 8)
       .map(([k, v]) => ({ attr: k, value: Math.min(3, Math.floor((v - 7) / 2)) }));
     const fragments = Math.floor(score.total / 10) + gameState.character.age;
-    const legacy = gameState.character.legacy.map(l => typeof l === 'object' ? l.name : l).slice(0, 3);
+    const legacy = [
+      ...gameState.character.legacy.map(l => typeof l === 'object' ? l.name : l),
+      ...items.map(i => i.name),
+    ].slice(0, 3);
 
     const inheritData = {
       generation: (gameState.generation || 1) + 1,
@@ -201,29 +230,7 @@ export default function SettlementPage() {
   const handleReincarnation = async () => {
     if (!gameState) return;
     setSaving(true);
-
-    // 获取选中的遗产对象
-    const selectedItems = gameState.character.legacy
-      .filter((l: any) => typeof l === 'object' && selectedLegacy.has(l.name))
-      .slice(0, 2);
-
-    if (selectedItems.length === 0) {
-      // 没选遗产，直接跳转
-      await doSaveAndNavigate([]);
-      return;
-    }
-
-    // 检查容量
-    if (userLegacyCount + selectedItems.length <= 10) {
-      // 容量足够，直接保存
-      await doSaveAndNavigate(selectedItems);
-      return;
-    }
-
-    // 容量不足，弹出替换弹窗
-    setPendingLegacy(selectedItems);
-    setShowReplaceModal(true);
-    setSaving(false);
+    await doSaveAndNavigate([]);
   };
 
   const handleReplaceDone = async () => {
@@ -250,6 +257,32 @@ export default function SettlementPage() {
     navigate('/');
   };
 
+  // 仅保留遗产（不跳转，不开启来世）
+  const handleSaveLegacy = async () => {
+    const selectedItems = aiLegacies
+      .filter((l) => selectedLegacy.has(l.name))
+      .slice(0, 1);
+    if (selectedItems.length === 0) return;
+    setSaving(true);
+    try {
+      // 检查容量
+      if (userLegacyCount + selectedItems.length > 10) {
+        setPendingLegacy(selectedItems);
+        setShowReplaceModal(true);
+        setSaving(false);
+        return;
+      }
+      await legacyApi.add(selectedItems);
+      setLegacySaved(true);
+      // 刷新遗产数量
+      const res = await legacyApi.list();
+      if (res.data.success) setUserLegacyCount(res.data.count || 0);
+    } catch {
+      // 忽略
+    }
+    setSaving(false);
+  };
+
   if (loading) {
     return (
       <div style={pageStyles.page}>
@@ -263,27 +296,15 @@ export default function SettlementPage() {
   if (!gameState) return null;
 
   const { character, history } = gameState;
-  const choicesCount = history.filter(h => h.choice).length;
-  const regretsCount = Math.max(0, history.length - choicesCount);
-  const legacyCount = character.legacy.length;
 
-  // 生成关键命线（取5条重要节点）
-  const keyThreads = history
-    .filter(h => h.eventType === 'choice' || h.eventType === 'breakthrough' || h.eventType === 'death' || h.eventType === 'loss')
-    .slice(0, 5);
+  // 人生历程：展示全部历史节点
+  const lifeJourney = history;
 
-  // 遗产数据（本世获得）
-  const legacyItems: LegacyItem[] = character.legacy.map((l: any) => {
-    const name = typeof l === 'object' ? l.name : l;
-    const desc = typeof l === 'object' ? l.desc : '';
-    const source = typeof l === 'object' ? (l.source || '') : '';
-    const mark = typeof l === 'object' ? l.mark : '';
-    const rarity = typeof l === 'object' ? l.rarity : '';
-    return { name, desc, source, mark, rarity };
-  });
+  // 遗产数据（AI 生成）
+  const legacyItems: LegacyItem[] = aiLegacies;
 
   const selectedCount = selectedLegacy.size;
-  const quotaFull = selectedCount >= 2;
+  const quotaFull = selectedCount >= 1;
 
   // 默认总结
   const defaultSummary = `${character.name}于${character.world}度过了一生。性格${character.personality}，欲望${character.desire}，经历了${history.length}个人生节点，最终在${character.age}岁时画上句点。`;
@@ -328,34 +349,24 @@ export default function SettlementPage() {
             </div>
           </div>
 
-          {/* 标题 */}
-          <h2 style={{ margin: '0 0 12px', fontSize: '28px', fontWeight: 400, color: '#221d18', letterSpacing: '2px', lineHeight: 1.2 }}>
-            {character.personality}之后
+          {/* 标题 - AI 生成 */}
+          <h2 style={{ margin: '0 0 4px', fontSize: '28px', fontWeight: 400, color: '#221d18', letterSpacing: '2px', lineHeight: 1.2 }}>
+            {title || `${character.personality}之后`}
           </h2>
+          {gradeDesc && (
+            <div style={{ margin: '0 0 12px', color: '#7a2020', fontSize: '13px', letterSpacing: '1px', fontStyle: 'italic' }}>
+              {gradeDesc}
+            </div>
+          )}
 
           {/* 总结文字 */}
           <p style={{ margin: '0 0 20px', color: '#5a5047', fontSize: '13px', lineHeight: '1.75', letterSpacing: '0.5px' }}>
-            {summary || defaultSummary}
+            {summaryLoading ? (
+              <span style={{ color: '#948879', fontStyle: 'italic' }}>AI 正在生成总结...</span>
+            ) : (
+              summary || defaultSummary
+            )}
           </p>
-
-          {/* 统计数据 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', borderTop: '1px solid rgba(34,29,24,0.1)', paddingTop: '16px' }}>
-            {[
-              { value: character.age, label: '寿命' },
-              { value: choicesCount, label: '抉择' },
-              { value: regretsCount, label: '遗憾' },
-              { value: legacyCount, label: '获得' },
-            ].map((item, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '22px', fontWeight: 300, color: '#221d18', letterSpacing: '1px', lineHeight: 1 }}>
-                  {String(item.value).padStart(2, '0')}
-                </div>
-                <div style={{ fontSize: '10px', color: '#948879', marginTop: '4px', letterSpacing: '1px' }}>
-                  {item.label}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -369,9 +380,9 @@ export default function SettlementPage() {
           {[
             { label: '姓名', value: character.name },
             { label: '世界', value: `${character.world} / ${character.worldConfig || '现代'}` },
-            { label: '出身', value: gameState.lifeStatus?.identity || '普通人家' },
+            { label: '出身', value: character.worldConfig || '现代' },
             { label: '天赋', value: character.talents.map((t: any) => typeof t === 'object' ? t.name : t).slice(0, 2).join(' / ') || '无' },
-            { label: '终局', value: history[history.length - 1]?.summary || '寿终正寝' },
+            { label: '终局', value: history[history.length - 1]?.eventType === 'death' ? '寿终正寝' : '人生落幕' },
           ].map((item, i) => (
             <div key={i} style={pageStyles.infoRow}>
               <span style={{ color: '#948879', fontSize: '12px' }}>{item.label}</span>
@@ -381,90 +392,86 @@ export default function SettlementPage() {
         </div>
       </section>
 
-      {/* 关键命线 */}
-      {keyThreads.length > 0 && (
+      {/* 人生历程 - 支持展开收起 */}
+      {lifeJourney.length > 0 && (
         <section style={pageStyles.section}>
           <div style={pageStyles.sectionTitle}>
-            <span>关键命线</span>
-            <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Major Threads</span>
+            <span>人生历程</span>
+            <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Life Journey</span>
           </div>
           <div style={pageStyles.timeline}>
-            {keyThreads.map((thread, i) => (
-              <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: i < keyThreads.length - 1 ? '16px' : 0 }}>
+            {(journeyExpanded ? lifeJourney : lifeJourney.slice(0, 5)).map((entry, i) => (
+              <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20px', flexShrink: 0 }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid #7a2020', background: 'transparent' }} />
-                  {i < keyThreads.length - 1 && (
-                    <div style={{ width: '1px', flex: 1, background: 'rgba(34,29,24,0.12)', marginTop: '4px' }} />
-                  )}
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    border: entry.isDeath ? '1.5px solid #7a2020' : '1.5px solid rgba(34,29,24,0.2)',
+                    background: entry.isDeath ? '#7a2020' : 'transparent',
+                  }} />
+                  <div style={{ width: '1px', flex: 1, background: 'rgba(34,29,24,0.12)', marginTop: '4px', minHeight: '12px' }} />
                 </div>
-                <div style={{ flex: 1, paddingBottom: i < keyThreads.length - 1 ? '16px' : 0 }}>
-                  <div style={{ fontSize: '12px', color: '#7a2020', marginBottom: '4px', letterSpacing: '1px' }}>
-                    {thread.year} 岁
-                  </div>
-                  <p style={{ margin: 0, color: '#5a5047', fontSize: '13px', lineHeight: '1.6' }}>
-                    {thread.narrative || thread.event}
+                <div style={{ flex: 1, paddingBottom: '8px' }}>
+                  <p style={{ margin: 0, color: entry.isDeath ? '#7a2020' : '#5a5047', fontSize: '13px', lineHeight: '1.6' }}>
+                    {entry.narrative}
                   </p>
+                  {entry.choice && (
+                    <div style={{ marginTop: '6px', paddingLeft: '10px', borderLeft: '1px solid rgba(159,124,62,0.4)', color: '#9f7c3e', fontSize: '12px' }}>
+                      抉择：{entry.choice}
+                      {entry.effects && Object.entries(entry.effects).filter(([,v]) => v && v !== 0).length > 0 && (
+                        <span> · {Object.entries(entry.effects).filter(([,v]) => v && v !== 0).map(([k, v]) => `${getAttrLabel(k)}${v > 0 ? '+' : ''}${v}`).join('，')}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+            {/* 展开/收起按钮 */}
+            {lifeJourney.length > 5 && (
+              <button
+                onClick={() => setJourneyExpanded(!journeyExpanded)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '8px',
+                  border: '1px solid rgba(34,29,24,0.12)',
+                  background: 'transparent',
+                  color: '#7a2020',
+                  fontSize: '12px',
+                  letterSpacing: '2px',
+                  cursor: 'pointer',
+                  fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif",
+                }}
+              >
+                {journeyExpanded ? `收起（共 ${lifeJourney.length} 条）` : `展开全部（共 ${lifeJourney.length} 条）`}
+              </button>
+            )}
           </div>
         </section>
       )}
 
-      {/* 属性终值 */}
+      {/* 保留遗产 - AI 生成，可选 1 项 */}
       <section style={pageStyles.section}>
         <div style={pageStyles.sectionTitle}>
-          <span>属性终值</span>
-          <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Final Attributes</span>
-        </div>
-        <div style={pageStyles.infoCard}>
-          {Object.entries(character.attributes).map(([key, currentVal]) => {
-            const initialVal = (initialAttributes as any)[key] || currentVal;
-            const change = currentVal - initialVal;
-            const maxVal = 20;
-            const progress = (currentVal / maxVal) * 100;
-
-            return (
-              <div key={key} style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ color: '#5a5047', fontSize: '13px', width: '40px' }}>{getAttrLabel(key)}</span>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', margin: '0 12px' }}>
-                    <span style={{ fontSize: '11px', color: '#948879', width: '24px', textAlign: 'right' }}>
-                      {String(initialVal).padStart(2, '0')}
-                    </span>
-                    <span style={{ color: '#948879', fontSize: '11px' }}>→</span>
-                    <span style={{ fontSize: '13px', color: '#221d18', width: '24px' }}>
-                      {String(currentVal).padStart(2, '0')}
-                    </span>
-                    <div style={{ flex: 1, height: '2px', background: 'rgba(34,29,24,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
-                      <div style={{ width: `${progress}%`, height: '100%', background: '#7a2020', borderRadius: '1px' }} />
-                    </div>
-                  </div>
-                  <span style={{ fontSize: '12px', color: change >= 0 ? '#7a2020' : '#5a5047', width: '30px', textAlign: 'right' }}>
-                    {change >= 0 ? `+${change}` : change}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 保留遗产 - 可选择 */}
-      {legacyItems.length > 0 && (
-        <section style={pageStyles.section}>
-          <div style={pageStyles.sectionTitle}>
-            <span>保留遗产</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Inheritance</span>
-              <span style={{ fontSize: '11px', color: '#7a2020', letterSpacing: '1px' }}>
-                已选 {selectedCount} / 2
-              </span>
-            </div>
+          <span>保留遗产</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Inheritance</span>
+            <span style={{ fontSize: '11px', color: '#7a2020', letterSpacing: '1px' }}>
+              已选 {selectedCount} / 1
+            </span>
           </div>
-          <p style={{ margin: '0 0 12px', color: '#948879', fontSize: '12px', lineHeight: '1.5', letterSpacing: '0.5px' }}>
-            选择最多 2 项遗产保存到账户（当前账户：{userLegacyCount} / 10）
-          </p>
+        </div>
+        <p style={{ margin: '0 0 12px', color: '#948879', fontSize: '12px', lineHeight: '1.5', letterSpacing: '0.5px' }}>
+          AI 根据人生经历提炼的遗产，选择 1 项保存到账户（当前账户：{userLegacyCount} / 10）
+        </p>
+
+        {legaciesLoading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#948879', fontSize: '13px', letterSpacing: '1px' }}>
+            AI 正在提炼遗产...
+          </div>
+        ) : legacyItems.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {legacyItems.map((item, i) => {
               const isSelected = selectedLegacy.has(item.name);
@@ -507,8 +514,11 @@ export default function SettlementPage() {
                       ✓
                     </div>
                   )}
-                  <div style={{ marginBottom: '6px' }}>
-                    <span style={{ fontSize: '10px', color: '#7a2020', letterSpacing: '0.5px' }}>{item.rarity || '技能'}</span>
+                  <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', color: '#7a2020', letterSpacing: '0.5px' }}>{item.rarity || '普通'}</span>
+                    {item.source && (
+                      <span style={{ fontSize: '9px', color: '#948879', letterSpacing: '0.5px' }}>{item.source}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: '15px', color: '#221d18', marginBottom: '6px', fontWeight: 400, letterSpacing: '1px' }}>
                     {item.name}
@@ -520,23 +530,34 @@ export default function SettlementPage() {
               );
             })}
           </div>
-        </section>
-      )}
+        ) : (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#948879', fontSize: '12px', letterSpacing: '1px', border: '1px solid rgba(34,29,24,0.08)', background: '#f8f4ec' }}>
+            AI 暂未生成遗产，可直接开启来世
+          </div>
+        )}
 
-      {/* 最后回响 */}
-      <section style={pageStyles.section}>
-        <div style={pageStyles.sectionTitle}>
-          <span>最后回响</span>
-          <span style={{ fontSize: '11px', color: '#948879', fontStyle: 'italic', letterSpacing: '1px' }}>Last Words</span>
-        </div>
-        <div style={{ paddingLeft: '12px', borderLeft: '1.5px solid #7a2020' }}>
-          <p style={{ margin: 0, color: '#5a5047', fontSize: '13px', lineHeight: '1.85', letterSpacing: '0.5px' }}>
-            {summary
-              ? `${summary.slice(0, 120)}...`
-              : `如果人生可以重来，${character.name}未必会做出更聪明的选择。但或许会更早明白：有些失败并非终点，只是命运把人推回真正重要的东西面前。`
-            }
-          </p>
-        </div>
+        {/* 独立保留遗产按钮 */}
+        {selectedCount > 0 && !legacySaved && (
+          <button
+            onClick={handleSaveLegacy}
+            disabled={saving}
+            style={{
+              ...pageStyles.btnOutline,
+              width: '100%',
+              marginTop: '12px',
+              height: '42px',
+              opacity: saving ? 0.6 : 1,
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? '保存中...' : '保留遗产'}
+          </button>
+        )}
+        {legacySaved && (
+          <div style={{ marginTop: '12px', padding: '10px 16px', background: 'rgba(62,106,75,0.08)', border: '1px solid rgba(62,106,75,0.3)', color: '#3e6a4b', fontSize: '12px', letterSpacing: '1px', textAlign: 'center' }}>
+            ✓ 遗产已保留
+          </div>
+        )}
       </section>
 
       {/* 底部按钮 */}
@@ -581,7 +602,7 @@ export default function SettlementPage() {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            {saving ? '保存中...' : selectedCount > 0 ? `保存 ${selectedCount} 项并开启来世` : '开启来世'}
+            {saving ? '加载中...' : '开启来世'}
           </button>
         </div>
       </section>
@@ -600,6 +621,9 @@ export default function SettlementPage() {
       )}
 
       <style>{`
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
         @media (min-width: 768px) {
           body { display: flex; align-items: center; justify-content: center; background: #d4c8b8; }
           .settlement-page-wrapper { width: 430px; min-height: 860px; max-height: 96vh; overflow-y: auto; background: #f0ebe3; box-shadow: 0 30px 100px rgba(34,29,24,0.24); }

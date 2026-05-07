@@ -10,6 +10,12 @@ router.post('/:id/settle', authMiddleware, settlementController.settle);
 // 生成人生总结
 router.post('/:id/summary', authMiddleware, settlementController.generateSummary);
 
+// 流式生成人生总结（SSE）
+router.post('/summary/stream', authMiddleware, settlementController.generateSummaryStream);
+
+// AI 生成遗产
+router.post('/legacy/generate', authMiddleware, settlementController.generateLegacies);
+
 // 导出存档
 router.get('/:id/export', authMiddleware, settlementController.export);
 

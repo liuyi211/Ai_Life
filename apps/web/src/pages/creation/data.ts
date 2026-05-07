@@ -42,7 +42,8 @@ export interface CreationForm {
   worldConfig: string;
   name: string;
   gender: string;
-  age: string;
+  personality: string;
+  desire: string;
   customNote: string;
   attributes: Record<string, number>;
   talents: Talent[];
@@ -52,9 +53,10 @@ export interface CreationForm {
 export const DEFAULT_FORM: CreationForm = {
   world: 'earth',
   worldConfig: '现代',
-  name: '',
+  name: '王平',
   gender: '男',
-  age: '少年',
+  personality: '冷静克制',
+  desire: '改变命运',
   customNote: '',
   attributes: { body: 7, mind: 9, charm: 6, fate: 8 },
   talents: [],

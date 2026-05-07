@@ -38,10 +38,20 @@ export default function LoginPage() {
     }
   };
 
-  const handleGuest = useCallback(() => {
-    showToast('以访客身份进入命运主厅');
-    setTimeout(() => navigate('/'), 800);
-  }, [navigate]);
+  const handleGuest = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await authApi.guest();
+      const { token, user } = response.data;
+      login(token, user);
+      showToast('访客身份已确认');
+      setTimeout(() => navigate('/'), 600);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || '访客登录失败');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate, login]);
 
   return (
     <div className="auth-page relative w-full h-screen flex flex-col overflow-hidden" style={{ padding: '38px 26px 30px', zIndex: 1 }}>
@@ -147,8 +157,8 @@ export default function LoginPage() {
         <div className="flex justify-between items-center" style={{ marginTop: '24px', color: '#948879', fontSize: '14px', letterSpacing: '1px', gap: '12px' }}>
           <span style={{ minWidth: 0, whiteSpace: 'nowrap' }}>尚未铭刻灵魂印记？</span>
           <div className="flex items-center" style={{ justifyContent: 'flex-end', gap: '14px', whiteSpace: 'nowrap' }}>
-            <button type="button" onClick={handleGuest}
-              style={{ color: '#948879', textDecoration: 'none', paddingBottom: '2px', letterSpacing: '2px', background: 'none', border: 'none', borderBottom: '1px solid rgba(148,136,121,0.32)', cursor: 'pointer', fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif" }}
+            <button type="button" onClick={handleGuest} disabled={isLoading}
+              style={{ color: '#948879', textDecoration: 'none', paddingBottom: '2px', letterSpacing: '2px', background: 'none', border: 'none', borderBottom: '1px solid rgba(148,136,121,0.32)', cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1, fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif" }}
             >访客登录</button>
             <Link to="/register"
               style={{ color: '#221d18', textDecoration: 'none', borderBottom: '1px solid rgba(34,29,24,0.28)', paddingBottom: '2px', letterSpacing: '2px' }}

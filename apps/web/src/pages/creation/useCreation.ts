@@ -4,7 +4,7 @@ import { saveApi } from '../../services/api';
 import { clearLocalBackup } from '../../services/storage';
 import { useWorldStore } from '../../stores/worldStore';
 import type { CreationForm, LegacyItem, Talent } from './data';
-import { DEFAULT_FORM } from './data';
+import { DEFAULT_FORM, PERSONALITIES, DESIRES } from './data';
 
 export function useCreation() {
   const navigate = useNavigate();
@@ -175,7 +175,8 @@ export function useCreation() {
     const worldIds = allWorlds.map((w) => w.id);
     const randomWorld = Math.floor(Math.random() * worldIds.length);
     const randomGender = Math.floor(Math.random() * 3);
-    const randomAge = Math.floor(Math.random() * 3);
+    const randomPersonality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
+    const randomDesire = DESIRES[Math.floor(Math.random() * DESIRES.length)];
 
     const selectedWorldId = worldIds[randomWorld] || 'earth';
     const world = allWorlds.find((w) => w.id === selectedWorldId);
@@ -196,7 +197,8 @@ export function useCreation() {
       world: selectedWorldId,
       worldConfig: world?.configOptions?.[0] || '现代',
       gender: ['男', '女', '未知'][randomGender],
-      age: ['幼年', '少年', '成年'][randomAge],
+      personality: randomPersonality,
+      desire: randomDesire,
       talents: randomTalents,
       attributes: {
         body: Math.floor(Math.random() * 6) + 3,
@@ -243,10 +245,12 @@ export function useCreation() {
       const characterData = {
         name: form.name || '无名者',
         world: worldConfig?.name || '地球 Online',
-        worldConfig: form.worldConfig,
-        gender: form.gender,
-        age: form.age,
-        customNote: form.customNote,
+        worldConfig: form.worldConfig || '现代',
+        gender: form.gender || '男',
+        personality: form.personality || '冷静克制',
+        desire: form.desire || '改变命运',
+        age: 0,
+        customNote: form.customNote || '',
         attributes: finalAttributes,
         talents: form.talents,
         legacy: finalLegacy,

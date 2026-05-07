@@ -13,11 +13,15 @@ import {
   calculateDerivedStats,
   getLifeStage,
   serializeGameState,
-  checkDeath,
   applyLifeStatusChanges,
   createDefaultLifeStatus,
   type AttributeEffects,
 } from '../engine/gameEngine';
+import {
+  getWorldDeathConfig,
+  getRandomAccident,
+  getTransitionText,
+} from '../engine/worldConfig';
 
 // ==================== Toast Hook ====================
 function useToast() {
@@ -89,6 +93,9 @@ export default function GamePage() {
   const [choiceMode, setChoiceMode] = useState(false);
   const [storyEntries, setStoryEntries] = useState<Array<{ text: string; type: 'narrative' | 'choice' | 'system' | 'result' | 'error' }>>([]);
   const [currentFragment, setCurrentFragment] = useState(1);
+
+  // 抉择计数器：每 5-8 个节点触发一次抉择（代码控制，忽略 AI 的建议）
+  const choiceCounterRef = useRef<number>(Math.floor(Math.random() * 4) + 5); // 5-8 随机初始值
   const [storyState, setStoryState] = useState('命运正在展开');
   const [typedEntries, setTypedEntries] = useState<Set<number>>(new Set());
   const [displayTexts, setDisplayTexts] = useState<Record<number, string>>({});
@@ -100,6 +107,12 @@ export default function GamePage() {
   const storyScrollRef = useRef<HTMLDivElement>(null);
   const typingRef = useRef<{ index: number; timer: ReturnType<typeof setInterval> | null }>({ index: -1, timer: null });
   const hasInitializedRef = useRef(false);
+  const gameStateRef = useRef<GameState | null>(null);
+
+  // 同步 gameState 到 ref，确保 cleanup/unload 时读取最新状态
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // 打字机效果
   const typeText = useCallback((entryIndex: number, text: string, onComplete?: () => void) => {
@@ -130,14 +143,29 @@ export default function GamePage() {
     }, 28);
   }, []);
 
-  // 添加故事条目并触发打字
-  const appendStoryEntry = useCallback((text: string, type: 'narrative' | 'choice' | 'system' | 'result' | 'error' = 'narrative', onComplete?: () => void) => {
+  // 添加故事条目并触发打字（skipTyping=true 时直接显示全文）
+  const appendStoryEntry = useCallback((
+    text: string,
+    type: 'narrative' | 'choice' | 'system' | 'result' | 'error' = 'narrative',
+    onComplete?: () => void,
+    skipTyping?: boolean,
+  ) => {
     setStoryEntries((prev) => {
       const newIndex = prev.length;
       const next = [...prev, { text, type }];
-      requestAnimationFrame(() => {
-        typeText(newIndex, text, onComplete);
-      });
+      if (skipTyping) {
+        // 直接标记为已完整显示，跳过打字动画
+        setTypedEntries((prevTyped) => {
+          const nextTyped = new Set(prevTyped);
+          nextTyped.add(newIndex);
+          return nextTyped;
+        });
+        onComplete?.();
+      } else {
+        requestAnimationFrame(() => {
+          typeText(newIndex, text, onComplete);
+        });
+      }
       return next;
     });
   }, [typeText]);
@@ -213,9 +241,21 @@ export default function GamePage() {
             // 继续游戏：恢复历史记录到 storyEntries
             const entries: typeof storyEntries = [];
             state.history.forEach((h) => {
-              entries.push({ text: h.narrative || h.event, type: 'narrative' });
+              entries.push({ text: h.narrative, type: 'narrative' });
               if (h.choice) {
-                entries.push({ text: `选择了：${h.choice}`, type: 'choice' });
+                // 构建属性变化展示
+                const effectParts: string[] = [];
+                if (h.effects) {
+                  (Object.keys(h.effects) as Array<keyof AttributeEffects>).forEach((key) => {
+                    const val = h.effects[key];
+                    if (val && val !== 0) {
+                      const label = CHOICE_EFFECT_LABELS[key] || key;
+                      effectParts.push(`${label}${val > 0 ? '+' : ''}${val}`);
+                    }
+                  });
+                }
+                const effectStr = effectParts.length > 0 ? `  · ${effectParts.join('，')}` : '';
+                entries.push({ text: `选择了：${h.choice}${effectStr}`, type: 'choice' });
               }
             });
             // 如果有 currentEvent，说明之前触发了事件还没选择
@@ -253,17 +293,24 @@ export default function GamePage() {
                   state.lifeStatus || createDefaultLifeStatus(),
                   node.statusChanges
                 );
-                // 添加到历史
+                // 初始节点不触发选择（由计数器在后续节点控制抉择频率）
+                const baseState: GameState = {
+                  ...state,
+                  character: newCharacter,
+                  lifeStatus: newLifeStatus,
+                };
+                appendStoryEntry(node.text, 'narrative');
+                setGameState(baseState);
+
+                // 直接添加到历史记录（初始节点永不触发选择）
                 const newState = addHistoryEntry(
-                  { ...state, character: newCharacter, lifeStatus: newLifeStatus },
-                  node.summary || '出生',
+                  baseState,
                   node.text,
                   '',
                   {},
                   {
                     yearsPassed: node.yearsPassed || 0,
                     eventType: node.eventType,
-                    summary: node.summary,
                     consequences: node.consequences,
                     statusChanges: node.statusChanges,
                     isDeath: node.isDeath,
@@ -271,48 +318,7 @@ export default function GamePage() {
                   }
                 );
                 setGameState(newState);
-                appendStoryEntry(node.text, 'narrative');
-                // 保存初始背景到后端和本地
                 await saveGameState(newState, currentSaveId);
-
-                // 检查是否触发选择
-                if (node.shouldTriggerChoice) {
-                  // 生成选择
-                  try {
-                    const choiceRes = await aiApi.generateChoices({
-                      character: newCharacter,
-                      lifeStatus: newLifeStatus,
-                      node,
-                      count: 3,
-                    });
-                    if (choiceRes.data.success && choiceRes.data.choices?.length > 0) {
-                      const choices = choiceRes.data.choices.map((c: any, i: number) => ({
-                        id: `choice_${newCharacter.age}_${i}`,
-                        text: c.text,
-                        effects: { [c.effect]: c.value } as AttributeEffects,
-                      }));
-                      const event: GameEvent = {
-                        id: `event_${newCharacter.age}_${Date.now()}`,
-                        year: newCharacter.age,
-                        stage: getLifeStage(newCharacter.age),
-                        title: node.summary || '命运的抉择',
-                        narrative: node.text,
-                        choices,
-                        type: 'choice',
-                      };
-                      const stateWithChoice = { ...newState, currentEvent: event };
-                      setGameState(stateWithChoice);
-                      // 保存包含待选事件的状态
-                      await saveGameState(stateWithChoice, currentSaveId);
-                      setTimeout(() => {
-                        setChoiceMode(true);
-                        setStoryState('命运出现分歧');
-                      }, 600);
-                    }
-                  } catch {
-                    // 初始选择生成失败，静默处理
-                  }
-                }
 
                 // 检查死亡
                 if (node.isDeath) {
@@ -374,23 +380,26 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [gameState?.gameStatus]);
 
-  // 页面关闭/刷新前强制保存到本地
+  // 页面关闭/刷新前强制保存到本地；组件卸载时自动保存（使用 ref 避免闭包旧值）
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (gameState && saveId) {
-        saveLocalBackup(gameState, saveId);
+      const currentState = gameStateRef.current;
+      const currentSaveId = saveId;
+      if (currentState && currentSaveId) {
+        saveLocalBackup(currentState, currentSaveId);
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // 组件卸载时保存
-      if (gameState && gameState.gameStatus === 'playing' && saveId) {
-        saveGameState(gameState, saveId);
+      // 组件卸载时：如果最新状态仍是 playing 才自动保存，避免覆盖死亡/结算状态
+      const currentState = gameStateRef.current;
+      if (currentState && currentState.gameStatus === 'playing' && saveId) {
+        saveGameState(currentState, saveId);
       }
     };
-  }, [gameState, saveGameState, saveId]);
+  }, [saveGameState, saveId]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -462,23 +471,68 @@ export default function GamePage() {
         node.statusChanges
       );
 
-      // 4. 检查死亡
-      const deathCheck = checkDeath({ ...newCharacter, lifeStage: newStage });
-      if (deathCheck.isDead || node.isDeath) {
+      // 4. 检查死亡（世界特定判定 + 意外死亡 + AI 叙事内死亡）
+      const worldCfg = getWorldDeathConfig(newCharacter.world);
+      const derived = calculateDerivedStats(newCharacter);
+
+      // 4a. 机械死亡：寿元耗尽 或 体魄衰竭
+      const ageDeath = newAge >= derived.lifespan;
+      const bodyDeath = newCharacter.attributes.body <= 0;
+      // 4b. 终焉阶段概率死亡（按世界寿命比例调整阈值）
+      const elderThreshold = Math.max(40, Math.round(derived.lifespan * 0.5));
+      const elderDeath = newStage === 'elder' && newAge > elderThreshold
+        && Math.random() < (newAge - elderThreshold) / (derived.lifespan - elderThreshold) * 0.3;
+      // 4c. 意外死亡（世界特定概率，仅在非寿元耗尽时触发）
+      const accidentDeath = !ageDeath
+        && Math.random() < worldCfg.accidentChance;
+
+      // 确定死因
+      let deathCause = '';
+      let deathNarrative = '';
+      if (ageDeath) {
+        deathCause = '寿元耗尽';
+        const deathAge = Math.min(newAge, derived.lifespan);
+        deathNarrative = `${deathAge}岁 — ${newCharacter.name}走到了生命尽头。大限已至，在${newCharacter.world}的故事至此终结。`;
+        newCharacter.age = deathAge;
+        newCharacter.lifeStage = getLifeStage(deathAge);
+      } else if (bodyDeath) {
+        deathCause = '体魄衰竭';
+        deathNarrative = `${newAge}岁 — ${newCharacter.name}的身躯再也撑不住沉重的灵魂，在${newCharacter.world}的旅程戛然而止。`;
+      } else if (accidentDeath) {
+        deathCause = getRandomAccident(newCharacter.world);
+        deathNarrative = `${newAge}岁 — 命运无常。${newCharacter.name}因${deathCause}，在${newCharacter.world}的故事骤然中断。`;
+      } else if (elderDeath) {
+        deathCause = '衰老';
+        deathNarrative = `${newAge}岁 — 岁月磨灭了一切生机，${newCharacter.name}在${newCharacter.world}安详地闭上了双眼。`;
+      }
+
+      if (deathCause) {
+        // 调用 AI 生成自然死亡场景叙事
+        let aiDeathNarrative = deathNarrative;
+        try {
+          const deathRes = await aiApi.generateDeathNarrative({
+            character: { name: newCharacter.name, age: newCharacter.age, personality: newCharacter.personality },
+            history: gameState.history,
+            deathCause,
+            world: newCharacter.world,
+          });
+          if (deathRes.data.success && deathRes.data.text) {
+            aiDeathNarrative = deathRes.data.text;
+          }
+        } catch { /* 用硬编码兜底 */ }
+
         const finalState = addHistoryEntry(
           { ...gameState, character: newCharacter, lifeStatus: newLifeStatus },
-          node.summary || '死亡',
-          node.text,
+          aiDeathNarrative,
           '',
           {},
           {
-            yearsPassed: node.yearsPassed,
-            eventType: node.eventType || 'death',
-            summary: node.summary,
-            consequences: node.consequences,
+            yearsPassed: newAge - gameState.character.age,
+            eventType: 'death',
+            consequences: ['人生落幕'],
             statusChanges: node.statusChanges,
             isDeath: true,
-            deathText: node.deathText,
+            deathText: `最终年龄：${newCharacter.age}岁 · 死因：${deathCause}`,
           }
         );
         const deadState = {
@@ -490,40 +544,47 @@ export default function GamePage() {
         await saveGameState(deadState, saveId);
         setGenerating(false);
         setStoryState('命运已终结');
-        appendStoryEntry(node.text, 'narrative');
-        if (node.deathText) {
-          setTimeout(() => appendStoryEntry(node.deathText, 'system'), 400);
-        }
+        appendStoryEntry(aiDeathNarrative, 'system');
+        setTimeout(() => {
+          appendStoryEntry(`最终年龄：${newCharacter.age}岁 · 死因：${deathCause}`, 'result', undefined, true);
+        }, 600);
         toast.show(`${newCharacter.name} 已离世`);
         return;
       }
 
-      // 5. 添加到历史
-      const newState = addHistoryEntry(
-        { ...gameState, character: newCharacter, lifeStatus: newLifeStatus },
-        node.summary || '人生节点',
-        node.text,
-        '',
-        {},
-        {
-          yearsPassed: node.yearsPassed,
-          eventType: node.eventType,
-          summary: node.summary,
-          consequences: node.consequences,
-          statusChanges: node.statusChanges,
-          isDeath: false,
-        }
-      );
+      // 5. 创建基础状态（不添加历史记录；如果触发选择，由 handleChoice 统一添加）
+      const baseState: GameState = {
+        ...gameState,
+        character: newCharacter,
+        lifeStatus: newLifeStatus,
+      };
 
-      // 6. 显示人生节点
-      let stateToSave: GameState = newState;
-      setGameState(newState);
-      setCurrentFragment((prev) => prev + 1);
-      setStoryState('命运正在展开');
+      // 6. 显示年龄过渡文本 + 叙事文本
+      if (gameState.history.length > 0) {
+        const yearsPassed = newAge - gameState.character.age;
+        if (yearsPassed > 0) {
+          const transition = getTransitionText(newCharacter.world, yearsPassed);
+          const transitionText = yearsPassed > 3
+            ? `${transition}${yearsPassed}年过去了——`
+            : `${transition}`;
+          appendStoryEntry(transitionText, 'system');
+        }
+      }
       appendStoryEntry(node.text, 'narrative');
 
-      // 7. 根据节点决定是否触发选择
-      if (node.shouldTriggerChoice) {
+      // 7. 代码控制抉择频率：每 5-8 个节点触发一次（忽略 AI 建议）
+      let stateToSave: GameState = baseState;
+      let shouldDeferHistory = false;
+      setGameState(baseState);
+      setCurrentFragment((prev) => prev + 1);
+      setStoryState('命运正在展开');
+
+      // 递减计数器，<=0 时触发抉择
+      choiceCounterRef.current--;
+      const shouldTriggerChoice = choiceCounterRef.current <= 0;
+
+      if (shouldTriggerChoice) {
+        shouldDeferHistory = true;
         try {
           const choiceRes = await aiApi.generateChoices({
             character: newCharacter,
@@ -548,8 +609,12 @@ export default function GamePage() {
               narrative: node.text,
               choices,
               type: 'choice',
+              yearsPassed: node.yearsPassed,
+              eventType: node.eventType,
+              consequences: node.consequences,
+              statusChanges: node.statusChanges,
             };
-            stateToSave = { ...newState, currentEvent: event };
+            stateToSave = { ...baseState, currentEvent: event };
             setGameState(stateToSave);
             setTimeout(() => {
               setChoiceMode(true);
@@ -561,6 +626,24 @@ export default function GamePage() {
         }
       }
 
+      // 如果没有触发选择，立即添加到历史记录
+      if (!shouldDeferHistory) {
+        stateToSave = addHistoryEntry(
+          baseState,
+          node.text,
+          '',
+          {},
+          {
+            yearsPassed: node.yearsPassed,
+            eventType: node.eventType,
+            consequences: node.consequences,
+            statusChanges: node.statusChanges,
+            isDeath: false,
+          }
+        );
+        setGameState(stateToSave);
+      }
+
       // 8. 保存（确保 currentEvent 也被持久化）
       await saveGameState(stateToSave, saveId);
     } catch (err) {
@@ -569,7 +652,7 @@ export default function GamePage() {
     } finally {
       setGenerating(false);
     }
-  }, [gameState, generating, choiceMode, aiEnabled, toast.show, appendStoryEntry]);
+  }, [gameState, generating, choiceMode, aiEnabled, saveId, toast.show, appendStoryEntry]);
 
   // 选择事件选项
   const handleChoice = useCallback(async (choiceIndex: number) => {
@@ -582,20 +665,45 @@ export default function GamePage() {
     setChoiceMode(false);
     setStoryState('命运正在展开');
 
-    // 1. 添加选择记录
-    appendStoryEntry(`选择了 ${CHOICE_KEYS[choiceIndex]}：${choice.text}`, 'choice');
+    // 1. 构建属性效果文本
+    const effectParts: string[] = [];
+    (Object.keys(choice.effects) as Array<keyof AttributeEffects>).forEach((key) => {
+      const val = choice.effects[key];
+      if (val && val !== 0) {
+        effectParts.push(`${CHOICE_EFFECT_LABELS[key]}${val > 0 ? '+' : ''}${val}`);
+        statBump.trigger(key);
+      }
+    });
+    const effectInline = effectParts.length > 0 ? `  · ${effectParts.join('，')}` : '';
 
-    // 2. 应用效果
+    // 2. 添加选择记录（跳过打字动画，直接显示全文 + 效果）
+    appendStoryEntry(`选择了 ${CHOICE_KEYS[choiceIndex]}：${choice.text}${effectInline}`, 'choice', undefined, true);
+
+    // 3. 显示属性变化 toast
+    if (effectParts.length > 0) {
+      toast.show(effectParts.join(' '));
+    }
     let newState: GameState = {
       ...gameState,
       character: applyChoiceEffects(gameState.character, choice.effects),
       currentEvent: null,
     };
 
-    // 3. 添加到历史（保存叙事文本）
-    newState = addHistoryEntry(newState, event.title, event.narrative, choice.text, choice.effects);
+    // 4. 添加到历史（保存叙事文本）—— 包含 event 携带的完整元数据
+    newState = addHistoryEntry(
+      newState,
+      event.narrative,
+      choice.text,
+      choice.effects,
+      {
+        yearsPassed: event.yearsPassed,
+        eventType: event.eventType,
+        consequences: event.consequences,
+        statusChanges: event.statusChanges,
+      }
+    );
 
-    // 4. 检查死亡
+    // 5. 检查死亡
     const derived = calculateDerivedStats(newState.character);
     if (newState.character.age >= derived.lifespan) {
       newState = {
@@ -607,25 +715,10 @@ export default function GamePage() {
     }
 
     setGameState(newState);
+    // 选择了之后，重置抉择计数器（随机 5-8）
+    choiceCounterRef.current = Math.floor(Math.random() * 4) + 5;
     await saveGameState(newState, saveId);
-
-    // 5. 显示属性变化
-    const effects: string[] = [];
-    (Object.keys(choice.effects) as Array<keyof AttributeEffects>).forEach((key) => {
-      const val = choice.effects[key];
-      if (val && val !== 0) {
-        effects.push(`${CHOICE_EFFECT_LABELS[key]}${val > 0 ? '+' : ''}${val}`);
-        statBump.trigger(key);
-      }
-    });
-
-    if (effects.length > 0) {
-      toast.show(effects.join(' '));
-      setTimeout(() => {
-        appendStoryEntry(`命运回应：${effects.join('，')}。`, 'result');
-      }, 300);
-    }
-  }, [gameState, choiceMode, toast.show, statBump.trigger, appendStoryEntry]);
+  }, [gameState, choiceMode, saveId, toast.show, statBump.trigger, appendStoryEntry]);
 
   // 获取显示文本（打字机效果）
   const getDisplayText = (entry: typeof storyEntries[0], index: number) => {
@@ -730,7 +823,22 @@ export default function GamePage() {
                 className="story-entry"
               >
                 <p style={pageStyles.entryP(entry.type)}>
-                  {getDisplayText(entry, i)}
+                  {entry.type === 'choice'
+                    ? (() => {
+                        const text = getDisplayText(entry, i);
+                        const sepIndex = text.indexOf('  · ');
+                        if (sepIndex > -1) {
+                          return (
+                            <>
+                              {text.slice(0, sepIndex)}
+                              <span style={pageStyles.choiceEffect}>{text.slice(sepIndex)}</span>
+                            </>
+                          );
+                        }
+                        return text;
+                      })()
+                    : getDisplayText(entry, i)
+                  }
                   {isEntryTyping(i) && <span style={pageStyles.typingCursor} />}
                 </p>
               </article>
@@ -788,12 +896,20 @@ export default function GamePage() {
               </button>
             )}
             {gameStatus === 'dead' && (
-              <button
-                style={pageStyles.btnPrimary}
-                onClick={() => navigate('/creation')}
-              >
-                开启新轮回
-              </button>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <button
+                  style={pageStyles.btnPrimary}
+                  onClick={() => navigate(`/settlement?saveId=${saveId}`)}
+                >
+                  查看人生总结
+                </button>
+                <button
+                  style={{ ...pageStyles.btnPrimary, color: '#948879', letterSpacing: '3px', fontSize: '13px' }}
+                  onClick={() => navigate('/creation')}
+                >
+                  开启新轮回
+                </button>
+              </div>
             )}
           </div>
         </section>
@@ -1080,7 +1196,7 @@ const pageStyles: Record<string, any> = {
   }),
   entryP: (type: string) => ({
     margin: 0,
-    color: type === 'error' ? '#7a2020' : type === 'result' ? '#3e6a4b' : '#5a5047',
+    color: type === 'error' ? '#7a2020' : type === 'result' ? '#3e6a4b' : type === 'choice' ? '#8a6a2e' : '#5a5047',
     fontFamily: "'Noto Serif SC', serif",
     fontSize: '15px',
     lineHeight: 1.9,
@@ -1136,7 +1252,7 @@ const pageStyles: Record<string, any> = {
     width: '100%',
     border: '1px solid rgba(34, 29, 24, 0.13)',
     background: 'rgba(248,244,236,0.36)',
-    color: '#5a5047',
+    color: '#71d993',
     minHeight: '42px',
     padding: '9px 10px',
     display: 'grid',
@@ -1158,6 +1274,11 @@ const pageStyles: Record<string, any> = {
   },
   choiceText: {
     color: '#5a5047',
+  },
+  choiceEffect: {
+    color: '#3e6a4b',
+    fontWeight: 500,
+    letterSpacing: '0.5px',
   },
   choiceEm: {
     fontStyle: 'normal',

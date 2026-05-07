@@ -15,7 +15,7 @@ interface SaveItem {
     lifeStage?: string;
     isAlive?: boolean;
   };
-  history: Array<{ year: number; event: string; choice: string }>;
+  history: Array<{ year: number; narrative: string; choice: string }>;
   gameStatus: string;
   updatedAt: string;
 }

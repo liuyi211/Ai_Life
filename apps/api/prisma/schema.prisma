@@ -19,6 +19,7 @@ model User {
   aiProvider        String?
   aiApiKeyEncrypted String?
   aiModel           String?
+  aiBaseUrl         String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   saves             SaveData[]
@@ -35,6 +36,9 @@ model SaveData {
   achievements String[]
   playTime     Int      @default(0)
   generation   Int      @default(1)
+  lifeStatus   Json?
+  gameStatus   String   @default("playing")
+  currentEvent Json?
   saveDate     DateTime @default(now())
   syncStatus   String   @default("synced")
   createdAt    DateTime @default(now())

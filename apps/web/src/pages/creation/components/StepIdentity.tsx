@@ -1,5 +1,5 @@
 import type { CreationForm } from '../data';
-import { AGES, GENDERS, ATTR_CONFIG } from '../data';
+import { GENDERS, ATTR_CONFIG, PERSONALITIES, DESIRES } from '../data';
 
 interface StepIdentityProps {
   form: CreationForm;
@@ -58,23 +58,36 @@ export default function StepIdentity({ form, onChange, onAttrChange }: StepIdent
           />
         </div>
 
-        {/* Age */}
+        {/* Personality */}
         <div style={{ marginBottom: '19px' }}>
           <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
-            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>03 / Age</span>
-            <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>开局年龄</span>
+            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>03 / Personality</span>
+            <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>性格</span>
           </div>
-          <SegmentedControl
-            options={AGES}
-            value={form.age}
-            onChange={(v) => onChange({ age: v })}
+          <SegmentedControl2
+            options={PERSONALITIES}
+            value={form.personality}
+            onChange={(v) => onChange({ personality: v })}
+          />
+        </div>
+
+        {/* Desire */}
+        <div style={{ marginBottom: '19px' }}>
+          <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
+            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>04 / Desire</span>
+            <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>欲望</span>
+          </div>
+          <SegmentedControl2
+            options={DESIRES}
+            value={form.desire}
+            onChange={(v) => onChange({ desire: v })}
           />
         </div>
 
         {/* Custom Note */}
         <div style={{ marginBottom: '19px' }}>
           <div className="flex justify-between items-end" style={{ marginBottom: '9px' }}>
-            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>04 / Note</span>
+            <span style={{ color: '#948879', fontSize: '13px', letterSpacing: '2px', fontStyle: 'italic' }}>05 / Note</span>
             <span style={{ color: '#221d18', fontSize: '14px', letterSpacing: '2px' }}>自定义设定</span>
           </div>
           <textarea
@@ -236,6 +249,44 @@ export default function StepIdentity({ form, onChange, onAttrChange }: StepIdent
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SegmentedControl2({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div
+      className="grid"
+      style={{ gridTemplateColumns: 'repeat(3, 1fr)', border: '1px solid rgba(34,29,24,0.13)' }}
+    >
+      {options.map((opt) => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          style={{
+            border: 'none',
+            borderRight: '1px solid rgba(34,29,24,0.09)',
+            borderBottom: '1px solid rgba(34,29,24,0.06)',
+            background: value === opt ? '#221d18' : 'transparent',
+            color: value === opt ? '#f8f4ec' : '#948879',
+            height: '42px',
+            fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif",
+            fontSize: '13px',
+            letterSpacing: '2px',
+            cursor: 'pointer',
+          }}
+        >
+          {opt}
+        </button>
+      ))}
     </div>
   );
 }

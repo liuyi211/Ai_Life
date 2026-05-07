@@ -17,6 +17,20 @@ function getWorldDescription(world: string): string {
   return WORLD_DESCRIPTIONS[world] || `以"${world}"为背景的世界。请根据这个世界观生成符合其设定的人生事件。`;
 }
 
+/** 世界特定死亡规则（供 AI 提示词使用） */
+const WORLD_DEATH_NOTES: Record<string, string> = {
+  '地球 Online': '地球世界人类寿命约60-90岁。意外死亡包括车祸、疾病、事故等。寿终正寝在70-90岁。',
+  '修仙世界': '修仙世界修士寿命可达200-400岁（练气100岁、筑基200岁、金丹400岁以上）。意外死因：妖兽、仇杀、秘境陨落、天劫、丹药反噬。',
+  '真武世界': '真武世界武者寿命约70-150岁，内力深厚者可达120以上。意外死因：比武、仇杀、走火入魔、中毒。',
+  '赛博灵朝': '赛博灵朝底层寿命约50-80岁。意外死因：义体故障、企业清除、赛博精神病、数据抹除。义体改造者可延长或缩短寿命。',
+  '末日方舟城': '末日方舟城人均寿命约40-60岁，极少超过70。意外死因：变异生物、辐射、饥荒、暴力、瘟疫。',
+  '神话复苏': '神话复苏世界普通人寿命约80-100岁，神裔血脉可达150以上。意外死因：被献祭、理智归零、神话灾难。调查局探员平均寿命不足40岁。',
+};
+
+function getWorldDeathNote(world: string): string {
+  return WORLD_DEATH_NOTES[world] || '该世界人类寿命约60-90岁。可能因疾病、意外或衰老死亡。';
+}
+
 /** 根据属性值生成描述 */
 function getAttributeDescription(body: number, mind: number, charm: number, fate: number): string {
   const descs: string[] = [];
@@ -98,6 +112,165 @@ function formatHistorySegment(segment: { startAge: number; endAge: number; event
   return `${ageRange}：${keyEvents.join('，')}`;
 }
 
+// ==================== 预生成辅助函数 ====================
+
+function getLifeStage(age: number): string {
+  if (age <= 6) return 'infant';
+  if (age <= 12) return 'child';
+  if (age <= 18) return 'youth';
+  if (age <= 60) return 'adult';
+  return 'elder';
+}
+
+function applyLifeStatus(current: any, changes: any): any {
+  if (!changes || typeof changes !== 'object') return current || {};
+  const base = current || {};
+  return {
+    identity: changes.identity || base.identity || '未知',
+    location: changes.location || base.location || '未知',
+    ability: changes.ability || base.ability || '未知',
+    items: Array.isArray(changes.items) ? changes.items : base.items || [],
+    relationships: Array.isArray(changes.relationships) ? changes.relationships : base.relationships || [],
+    injuries: Array.isArray(changes.injuries) ? changes.injuries : base.injuries || [],
+    reputation: changes.reputation || base.reputation || '默默无闻',
+    goals: Array.isArray(changes.goals) ? changes.goals : base.goals || [],
+    tags: Array.isArray(changes.tags) ? changes.tags : base.tags || [],
+    pending: Array.isArray(changes.pending) ? changes.pending : base.pending || [],
+  };
+}
+
+function computeNextState(
+  character: any,
+  lifeStatus: any,
+  history: any[],
+  node: any,
+): { character: any; lifeStatus: any; history: any[]; stage: string } {
+  const nextAge = node.newAge ?? (character.age + (node.yearsPassed || 1));
+  const nextCharacter = { ...character, age: nextAge, lifeStage: getLifeStage(nextAge) };
+  const nextLifeStatus = applyLifeStatus(lifeStatus, node.statusChanges);
+  const nextHistory = [
+    ...(history || []),
+    { year: nextAge, narrative: node.text || '', choice: '', effects: {} },
+  ];
+  return {
+    character: nextCharacter,
+    lifeStatus: nextLifeStatus,
+    history: nextHistory,
+    stage: getLifeStage(nextAge),
+  };
+}
+
+/** 构建预生成所需的精简 history 上下文 */
+function buildPreGenHistoryContext(history: any[]): string {
+  if (!history || history.length === 0) return '';
+  const recent = history.slice(-3);
+  return '此前人生节点：\n' + recent.map((h: any) => {
+    const ageStr = h.year !== undefined ? `${h.year}岁` : '';
+    const narrative = (h.narrative || h.event || '').replace(/^\d+岁\s*[—-]\s*/, '').trim();
+    return `  ${ageStr} — ${narrative}`;
+  }).join('\n') + '\n\n';
+}
+
+/** 构建预生成所需的精简 system prompt */
+function buildPreGenSystemPrompt(
+  worldName: string,
+  worldConfig: string,
+  worldDeathNote: string,
+  lifeStatus: any,
+  stage: string,
+): string {
+  const stageSpan: Record<string, string> = {
+    infant: '2-4年',
+    child: '3-6年',
+    youth: '2-5年',
+    adult: '4-15年（修仙/神话取上限，地球/末日落地下限）',
+    elder: '5-20年（寿命越长上限越高）',
+  };
+
+  return `你是人生编年史作者。继续为角色生成下一个人生节点。
+
+【世界观】${worldName}
+${getWorldDescription(worldName)}
+${worldConfig ? `【配置】${worldConfig}\n` : ''}【死亡规则】${worldDeathNote}
+
+【当前状态】
+身份：${lifeStatus?.identity || '未知'} / 地点：${lifeStatus?.location || '未知'}
+能力：${lifeStatus?.ability || '未知'} / 名声：${lifeStatus?.reputation || '默默无闻'}
+物品：${(lifeStatus?.items || []).join('、') || '无'}
+关系：${(lifeStatus?.relationships || []).join('、') || '无'}
+伤病：${(lifeStatus?.injuries || []).join('、') || '无'}
+伏笔：${(lifeStatus?.pending || []).join('、') || '无'}
+
+【时间跨度】当前阶段：${stage}，yearsPassed 应取 ${stageSpan[stage] || '2-8年'}
+
+【输出格式】纯JSON，不要markdown标记：
+{"yearsPassed":1-8,"newAge":N,"text":"X岁 — 事件描述（15-80字，编年史风格）","eventType":"具体类型","consequences":["后果"],"statusChanges":{"identity":"","location":"","ability":"","items":[],"relationships":[],"injuries":[],"reputation":"","goals":[],"tags":[],"pending":[]},"shouldTriggerChoice":false,"isDeath":false}`;
+}
+
+/** 链式预生成：生成1个节点 → 拿输出算下个状态 → 递归生成（depth次） */
+async function preGenChain(
+  userId: string,
+  user: { aiProvider: any; aiApiKeyEncrypted: any; aiModel: any; aiBaseUrl: any },
+  character: any,
+  lifeStatus: any,
+  history: any[],
+  stage: string,
+  depth: number,
+): Promise<void> {
+  if (depth <= 0) return;
+
+  const cacheKey = generateCacheKey({ userId, character, lifeStatus, history, stage });
+
+  // 已缓存或正在生成中，跳过
+  if (aiResultCache.get(cacheKey)) return;
+
+  let node: any = null;
+  try {
+    node = await aiResultCache.getOrGenerate(cacheKey, async () => {
+      const apiKey = decryptApiKey(user.aiApiKeyEncrypted);
+      const aiService = new AIService({
+        provider: (user.aiProvider || 'deepseek') as AIProvider,
+        apiKey,
+        model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
+      });
+
+      const worldName = character?.world || '地球 Online';
+      const worldDeathNote = getWorldDeathNote(worldName);
+      const historyContext = buildPreGenHistoryContext(history);
+
+      const systemPrompt = buildPreGenSystemPrompt(
+        worldName, character?.worldConfig || '', worldDeathNote, lifeStatus, stage
+      );
+
+      const userPrompt = `${historyContext}【角色】${character?.name || '无名者'}，${character?.age || 0}岁，${stage}，${character?.personality || '普通'}，渴望${character?.desire || '无'}
+天赋：${(character?.talents || []).map((t: any) => t.name || t).join('、') || '无'}
+
+请生成下一个人生节点。只输出JSON。`;
+
+      const response = await aiService.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ]);
+
+      const content = response.content.trim();
+      const jsonStr = content.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
+      return JSON.parse(jsonStr);
+    }, 30 * 60 * 1000);
+  } catch {
+    return; // 预生成失败静默退出
+  }
+
+  // 死亡节点不继续
+  if (node?.isDeath) return;
+
+  // 计算下一个状态并递归
+  const nextState = computeNextState(character, lifeStatus, history, node);
+  setImmediate(() =>
+    preGenChain(userId, user, nextState.character, nextState.lifeStatus, nextState.history, nextState.stage, depth - 1)
+  );
+}
+
 export const aiController = {
   // 获取用户 AI 配置
   async getConfig(req: Request, res: Response) {
@@ -110,6 +283,7 @@ export const aiController = {
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -121,6 +295,7 @@ export const aiController = {
       const config = {
         provider: user.aiProvider || 'deepseek',
         model: user.aiModel || '',
+        baseUrl: user.aiBaseUrl || '',
         hasApiKey: !!user.aiApiKeyEncrypted,
       };
 
@@ -135,7 +310,7 @@ export const aiController = {
   async updateConfig(req: Request, res: Response) {
     try {
       const userId = (req as any).userId;
-      const { provider, apiKey, model } = req.body;
+      const { provider, apiKey, model, baseUrl } = req.body;
 
       if (!provider) {
         return res.status(400).json({ success: false, message: '请选择 AI 提供商' });
@@ -145,6 +320,11 @@ export const aiController = {
         aiProvider: provider,
         aiModel: model || '',
       };
+
+      // baseUrl：传入空字符串时清除，否则保存
+      if (baseUrl !== undefined) {
+        updateData.aiBaseUrl = baseUrl.trim() || null;
+      }
 
       // 如果提供了新的 API Key，则加密存储
       if (apiKey && apiKey.trim()) {
@@ -173,6 +353,7 @@ export const aiController = {
         data: {
           aiApiKeyEncrypted: null,
           aiModel: '',
+          aiBaseUrl: null,
         },
       });
 
@@ -187,17 +368,19 @@ export const aiController = {
   async testConnection(req: Request, res: Response) {
     try {
       const userId = (req as any).userId;
-      const { provider, apiKey, model } = req.body;
+      const { provider, apiKey, model, baseUrl } = req.body;
 
       let testProvider: AIProvider;
       let testApiKey: string;
       let testModel: string | undefined;
+      let testBaseUrl: string | undefined;
 
       // 如果传入了参数，使用传入的参数测试
       if (provider && apiKey) {
         testProvider = provider as AIProvider;
         testApiKey = apiKey;
         testModel = model || undefined;
+        testBaseUrl = baseUrl || undefined;
       } else {
         // 否则从数据库读取
         const user = await prisma.user.findUnique({
@@ -206,6 +389,7 @@ export const aiController = {
             aiProvider: true,
             aiApiKeyEncrypted: true,
             aiModel: true,
+            aiBaseUrl: true,
           },
         });
 
@@ -216,12 +400,14 @@ export const aiController = {
         testApiKey = decryptApiKey(user.aiApiKeyEncrypted);
         testProvider = (user.aiProvider || 'deepseek') as AIProvider;
         testModel = user.aiModel || undefined;
+        testBaseUrl = user.aiBaseUrl || undefined;
       }
 
       const aiService = new AIService({
         provider: testProvider,
         apiKey: testApiKey,
         model: testModel,
+        baseUrl: testBaseUrl,
       });
 
       // 发送一个简单的测试消息
@@ -255,6 +441,7 @@ export const aiController = {
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -269,6 +456,7 @@ export const aiController = {
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       const worldDesc = getWorldDescription(character?.world || '地球 Online');
@@ -461,38 +649,33 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
       const userId = (req as any).userId;
       const { character, lifeStatus, history, stage } = req.body;
 
-      // 1. 检查缓存
-      const cacheKey = generateCacheKey({ userId, character, lifeStatus, history, stage });
-      const cached = aiResultCache.get(cacheKey);
-      if (cached) {
-        console.log(`[Cache] 命中缓存: ${cacheKey}`);
-        return res.json({
-          success: true,
-          node: cached,
-          cached: true,
-        });
-      }
-
+      // 获取用户 AI 配置（预生成也需要）
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
-
       if (!user || !user.aiApiKeyEncrypted) {
         return res.status(400).json({ success: false, message: '请先配置 API Key' });
       }
 
-      const apiKey = decryptApiKey(user.aiApiKeyEncrypted);
+      // 1. 生成/获取缓存节点（getOrGenerate 防竞态）
+      const cacheKey = generateCacheKey({ userId, character, lifeStatus, history, stage });
+
+      const node = await aiResultCache.getOrGenerate(cacheKey, async () => {
+
+      const apiKey = decryptApiKey(user.aiApiKeyEncrypted!);
       const provider = (user.aiProvider || 'deepseek') as AIProvider;
 
       const aiService = new AIService({
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       // 构建历史上下文（压缩策略：摘要 + 最近2条详细记录）
@@ -573,6 +756,7 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
       const currentStage = stage || 'adult';
       const worldName = character?.world || '地球 Online';
       const worldDesc = getWorldDescription(worldName);
+      const worldDeathNote = getWorldDeathNote(worldName);
       const talents = (character?.talents || []).join('、') || '无';
       const legacy = (character?.legacy || []).join('、') || '无';
       const gender = character?.gender || '未知';
@@ -611,14 +795,13 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
 【世界观设定】
 当前世界：${worldName}
 ${worldDesc}
-${narrativeWorldConfig ? `【世界配置】\n角色开局选择：${narrativeWorldConfig}。这个设定决定了角色在这个世界中的初始立场、出身背景和社会位置。请在生成事件时始终考虑这个配置的影响。` : ''}
+${narrativeWorldConfig ? `【世界配置】\n角色开局选择：${narrativeWorldConfig}。这个设定决定了角色在这个世界中的初始立场、出身背景和社会位置。请在生成事件时始终考虑这个配置的影响。\n` : ''}【世界死亡规则】
+${worldDeathNote}
 
 【角色设定影响规则 — 必须严格遵守】
 1. **天赋必须持续影响**：角色的天赋能力必须持续影响人生事件的走向。有天赋的角色在关键时刻会展现出与众不同的能力。
 2. **遗产必须持续体现**：角色携带的遗产必须持续体现在事件中（家族背景影响社交、初始物品在关键时刻发挥作用等）。
-3. **性格决定行为模式**：角色的性格决定了面对事件时的默认反应和选择倾向。
-4. **欲望是事件驱动力**：角色的欲望必须持续驱动事件发展方向。
-5. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
+3. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
 
 【属性值含义】
 ${narrativeAttrDesc}
@@ -630,11 +813,10 @@ ${narrativeAttrDesc}
 
 4. **节点 JSON 格式**：
 {
-  "yearsPassed": 5,
+  "yearsPassed": 1-5,
   "newAge": 28,
   "text": "28岁 — 具体事件描述，符合世界观",
   "eventType": "具体类型",
-  "summary": "事件摘要",
   "consequences": ["后果1", "后果2"],
   "statusChanges": {
     "identity": "新身份",
@@ -652,23 +834,28 @@ ${narrativeAttrDesc}
   "isDeath": false
 }
 
-5. **text 字段要求**：
-   - 格式必须是："X岁 — 具体事件描述"
-   - 必须包含一个具体事件（拜师、学艺、谋生、得到物品、失去亲人、受伤、背叛、突破、失败、迁徙、结识、离别、衰老、死亡等）
-   - 10-60字，信息密度高
+5. **text 字段要求**（编年史风格）：
+   - 格式必须是："X岁 — 简练事件描述"
+   - 必须包含一个具体事件，但要极简练，一行概括这个年龄段的经历
+   - **15-80字**，信息密度高，可展开关键转折但避免冗长
+   - **严禁超过80字**，超长文本会导致保存错误
+   - 风格：人生编年史/大事记，一句一事件，不展开细节
    - **必须承接"此前人生节点"的故事**，不能突兀跳转
    - 体现角色的身份、地点、能力、物品、关系等当前状态
    - **必须符合世界观设定**：地球 Online 写现代社会的学习、工作、家庭、经济、人际关系；修仙世界写修炼、宗门、秘境、丹药等
+   - 反面示例（禁止）："19岁 — 马铁倒在血泊中，你赶紧冲过去扶住他，他脸色苍白，你翻了翻口袋找止血草..."（超过80字，过于拖沓）
+   - 正面示例："19岁 — 马铁伤势痊愈后为报救命之恩，传授你完整《青木吐纳诀》与经络秘要，你凭惊人悟性两月内视成功，修出第一缕内劲"（精炼有力，约60字）
 
 6. **yearsPassed 要求**：
    - 根据人生阶段决定时间跨度：
-     - 幼年(infant)：3-7年
+     - 幼年(infant)：2-4年
      - 少年(child)：3-6年
      - 青年(youth)：2-5年
-     - 成年(adult)：4-10年
-     - 终焉(elder)：5-12年
-   - 如果当前有重大突破、危机、生死关头，可以缩短到1-3年
+     - 成年(adult)：4-15年（修仙/神话世界可取上限，地球/末日取下限）
+     - 终焉(elder)：5-20年（寿命越长上限越高）
+   - 闭关/修炼/重大事件可取更大跨度（10-30年，仅修仙/真武/神话世界）
    - newAge = 当前年龄 + yearsPassed
+   - **严禁超过该世界的人类寿命上限**
 
 7. **eventType 可选值**：birth, loss, training, breakthrough, failure, migration, meeting, betrayal, injury, gain, death, work, revenge, aging, family, other
 
@@ -686,9 +873,8 @@ ${narrativeAttrDesc}
    - pending：新的伏笔或待解决事项
 
 9. **shouldTriggerChoice**：
-   - 适合出现选择时设为 true（拜师、迁徙、遇到机缘、遭遇背叛、重大突破、生死危机、是否复仇、是否冒险等）
-   - 日常事件设为 false
-   - 不要过于频繁，大概每3-5条节点触发一次选择
+   - 始终设为 false
+   - 抉择时机由游戏代码控制，AI 无需判断
 
 10. **isDeath**：
     - 如果角色死亡设为 true
@@ -724,15 +910,13 @@ ${narrativeLegacyText}
 → ${narrativeAttrDesc}
 
 【生成规则】
-请基于此前人生节点和当前状态，生成下一条人生节点。
+请基于此前人生节点和当前状态，生成下一条人生节点。严格按照编年史风格，每个事件一行简练概括。
 
-1. **必须承接之前的故事**，不能突兀跳转世界观或场景。
 2. **必须体现天赋影响**：事件走向必须与角色的天赋能力相符。例如有"早慧之眼"的角色在求学/修炼时会比同龄人更快领悟。
 3. **必须体现遗产影响**：事件必须与角色携带的遗产相关。例如有"旧式香火芯片"的角色在关键时刻会触发某种承诺的回响。
-4. **必须符合性格倾向**：${narrativePersonality}的角色面对事件时会${getPersonalityDescription(narrativePersonality)}。
-5. **必须符合欲望驱动**：角色的一切行为都应该围绕"${narrativeDesire}"这个核心欲望展开。
 6. **必须符合属性值**：属性值高的领域角色应该表现得更优秀，属性值低的领域角色应该遇到困难或挫折。
 7. **必须严格遵守"${worldName}"的世界观设定**。
+8. **text字段严禁超过80字**，可展开关键转折但避免拖沓，不写无意义的对话和场景细节。
 
 直接输出 JSON，不要任何其他内容。`;
 
@@ -765,14 +949,19 @@ ${narrativeLegacyText}
         };
       }
 
-      // 写入缓存
-      aiResultCache.set(cacheKey, node);
-      console.log(`[Cache] 写入缓存: ${cacheKey}`);
-
-      res.json({
-        success: true,
-        node,
+        return node;
       });
+
+      console.log(`[Cache] resolve: ${cacheKey}`);
+
+      res.json({ success: true, node });
+
+      // 2. 链式预生成后续2个节点（异步，不阻塞响应）
+      if (!node.isDeath) {
+        const nextState = computeNextState(character, lifeStatus, history, node);
+        const ucfg = { aiProvider: user.aiProvider, aiApiKeyEncrypted: user.aiApiKeyEncrypted, aiModel: user.aiModel, aiBaseUrl: user.aiBaseUrl };
+        setImmediate(() => preGenChain(userId, ucfg, nextState.character, nextState.lifeStatus, nextState.history, nextState.stage, 2));
+      }
     } catch (error: any) {
       console.error('Generate narrative error:', error);
       res.status(500).json({
@@ -827,6 +1016,7 @@ ${narrativeLegacyText}
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -843,6 +1033,7 @@ ${narrativeLegacyText}
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       // 构建prompt（与generateNarrative相同，使用压缩历史）
@@ -900,6 +1091,7 @@ ${narrativeLegacyText}
       const currentStage = stage || 'adult';
       const worldName = character?.world || '地球 Online';
       const worldDesc = getWorldDescription(worldName);
+      const worldDeathNote = getWorldDeathNote(worldName);
       const gender = character?.gender || '未知';
 
       const narrativeTalentsList = (character?.talents || []);
@@ -934,14 +1126,13 @@ ${narrativeLegacyText}
 【世界观设定】
 当前世界：${worldName}
 ${worldDesc}
-${narrativeWorldConfig ? `【世界配置】\n角色开局选择：${narrativeWorldConfig}。这个设定决定了角色在这个世界中的初始立场、出身背景和社会位置。请在生成事件时始终考虑这个配置的影响。` : ''}
+${narrativeWorldConfig ? `【世界配置】\n角色开局选择：${narrativeWorldConfig}。这个设定决定了角色在这个世界中的初始立场、出身背景和社会位置。请在生成事件时始终考虑这个配置的影响。\n` : ''}【世界死亡规则】
+${worldDeathNote}
 
 【角色设定影响规则 — 必须严格遵守】
 1. **天赋必须持续影响**：角色的天赋能力必须持续影响人生事件的走向。有天赋的角色在关键时刻会展现出与众不同的能力。
 2. **遗产必须持续体现**：角色携带的遗产必须持续体现在事件中（家族背景影响社交、初始物品在关键时刻发挥作用等）。
-3. **性格决定行为模式**：角色的性格决定了面对事件时的默认反应和选择倾向。
-4. **欲望是事件驱动力**：角色的欲望必须持续驱动事件发展方向。
-5. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
+3. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
 
 【属性值含义】
 ${narrativeAttrDesc}
@@ -953,11 +1144,10 @@ ${narrativeAttrDesc}
 
 4. **节点 JSON 格式**：
 {
-  "yearsPassed": 5,
+  "yearsPassed": 1-4,
   "newAge": 28,
   "text": "28岁 — 具体事件描述，符合世界观",
   "eventType": "具体类型",
-  "summary": "事件摘要",
   "consequences": ["后果1", "后果2"],
   "statusChanges": {
     "identity": "新身份",
@@ -975,23 +1165,28 @@ ${narrativeAttrDesc}
   "isDeath": false
 }
 
-5. **text 字段要求**：
-   - 格式必须是："X岁 — 具体事件描述"
-   - 必须包含一个具体事件（拜师、学艺、谋生、得到物品、失去亲人、受伤、背叛、突破、失败、迁徙、结识、离别、衰老、死亡等）
-   - 10-60字，信息密度高
+5. **text 字段要求**（编年史风格）：
+   - 格式必须是："X岁 — 简练事件描述"
+   - 必须包含一个具体事件，但要极简练，一行概括这个年龄段的经历
+   - **15-80字**，信息密度高，可展开关键转折但避免冗长
+   - **严禁超过80字**，超长文本会导致保存错误
+   - 风格：人生编年史/大事记，一句一事件，不展开细节
    - **必须承接"此前人生节点"的故事**，不能突兀跳转
    - 体现角色的身份、地点、能力、物品、关系等当前状态
    - **必须符合世界观设定**：地球 Online 写现代社会的学习、工作、家庭、经济、人际关系；修仙世界写修炼、宗门、秘境、丹药等
+   - 反面示例（禁止）："19岁 — 马铁倒在血泊中，你赶紧冲过去扶住他，他脸色苍白，你翻了翻口袋找止血草..."（超过80字，过于拖沓）
+   - 正面示例："19岁 — 马铁伤势痊愈后为报救命之恩，传授你完整《青木吐纳诀》与经络秘要，你凭惊人悟性两月内视成功，修出第一缕内劲"（精炼有力，约60字）
 
 6. **yearsPassed 要求**：
    - 根据人生阶段决定时间跨度：
-     - 幼年(infant)：3-7年
+     - 幼年(infant)：2-4年
      - 少年(child)：3-6年
      - 青年(youth)：2-5年
-     - 成年(adult)：4-10年
-     - 终焉(elder)：5-12年
-   - 如果当前有重大突破、危机、生死关头，可以缩短到1-3年
+     - 成年(adult)：4-15年（修仙/神话世界可取上限，地球/末日取下限）
+     - 终焉(elder)：5-20年（寿命越长上限越高）
+   - 闭关/修炼/重大事件可取更大跨度（10-30年，仅修仙/真武/神话世界）
    - newAge = 当前年龄 + yearsPassed
+   - **严禁超过该世界的人类寿命上限**
 
 7. **eventType 可选值**：birth, loss, training, breakthrough, failure, migration, meeting, betrayal, injury, gain, death, work, revenge, aging, family, other
 
@@ -1009,9 +1204,8 @@ ${narrativeAttrDesc}
    - pending：新的伏笔或待解决事项
 
 9. **shouldTriggerChoice**：
-   - 适合出现选择时设为 true（拜师、迁徙、遇到机缘、遭遇背叛、重大突破、生死危机、是否复仇、是否冒险等）
-   - 日常事件设为 false
-   - 不要过于频繁，大概每3-5条节点触发一次选择
+   - 始终设为 false
+   - 抉择时机由游戏代码控制，AI 无需判断
 
 10. **isDeath**：
     - 如果角色死亡设为 true
@@ -1047,7 +1241,7 @@ ${narrativeLegacyText}
 → ${narrativeAttrDesc}
 
 【生成规则】
-请基于此前人生节点和当前状态，生成下一条人生节点。
+请基于此前人生节点和当前状态，生成下一条人生节点。严格按照编年史风格，每个事件一行简练概括。
 
 1. **必须承接之前的故事**，不能突兀跳转世界观或场景。
 2. **必须体现天赋影响**：事件走向必须与角色的天赋能力相符。例如有"早慧之眼"的角色在求学/修炼时会比同龄人更快领悟。
@@ -1056,6 +1250,7 @@ ${narrativeLegacyText}
 5. **必须符合欲望驱动**：角色的一切行为都应该围绕"${narrativeDesire}"这个核心欲望展开。
 6. **必须符合属性值**：属性值高的领域角色应该表现得更优秀，属性值低的领域角色应该遇到困难或挫折。
 7. **必须严格遵守"${worldName}"的世界观设定**。
+8. **text字段严禁超过80字**，可展开关键转折但避免拖沓，不写无意义的对话和场景细节。
 
 直接输出 JSON，不要任何其他内容。`;
 
@@ -1100,11 +1295,18 @@ ${narrativeLegacyText}
       }
 
       // 写入缓存
-      aiResultCache.set(cacheKey, node);
-      console.log(`[Cache] 流式写入缓存: ${cacheKey}`);
+      aiResultCache.set(cacheKey, node, 30 * 60 * 1000);
 
       // 发送完成事件
       sendEvent('complete', { success: true, node });
+
+      // 链式预生成后续2个节点
+      if (!node.isDeath && user) {
+        const nextState = computeNextState(character, lifeStatus, history, node);
+        const ucfg = { aiProvider: user.aiProvider, aiApiKeyEncrypted: user.aiApiKeyEncrypted, aiModel: user.aiModel, aiBaseUrl: user.aiBaseUrl };
+        setImmediate(() => preGenChain(userId, ucfg, nextState.character, nextState.lifeStatus, nextState.history, nextState.stage, 2));
+      }
+
       res.end();
     } catch (error: any) {
       console.error('Generate narrative stream error:', error);
@@ -1141,6 +1343,7 @@ ${narrativeLegacyText}
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -1155,6 +1358,7 @@ ${narrativeLegacyText}
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       // 解析选择时的角色信息
@@ -1188,15 +1392,16 @@ ${narrativeLegacyText}
 4. **遗产影响选择后果**：选择后的结果应该与角色携带的遗产相关。
 
 【选择规则】
-1. 每个选择项10-20字，简洁有力
+1. 每个选择项10-20字，有具体动作和结果暗示，
 2. 每个选择对应一个属性：体魄/悟性/羁绊/气运
 3. 属性变化+1或+2（可正可负）
 4. 使用JSON格式输出
 5. 只输出JSON，不要其他内容
+6. **严禁输出过短的选择**（少于15字视为不合格）
 
 输出格式：
 [
-  {"text": "选择描述", "effect": "属性名", "value": 1},
+  {"text": "选择动作描述及可能后果", "effect": "属性名", "value": 1},
   ...
 ]
 
@@ -1278,6 +1483,7 @@ ${choiceLegacyText}
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -1292,6 +1498,7 @@ ${choiceLegacyText}
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       const systemPrompt = `你是一位世界构建大师。请根据用户提供的世界设定，生成一段详细的世界介绍和专属天赋池。
@@ -1388,6 +1595,7 @@ ${choiceLegacyText}
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -1402,6 +1610,7 @@ ${choiceLegacyText}
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       const systemPrompt = `你是一位 NPC 角色扮演 AI。你正在扮演以下角色：
@@ -1450,6 +1659,7 @@ ${choiceLegacyText}
           aiProvider: true,
           aiApiKeyEncrypted: true,
           aiModel: true,
+          aiBaseUrl: true,
         },
       });
 
@@ -1464,6 +1674,7 @@ ${choiceLegacyText}
         provider,
         apiKey,
         model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
       });
 
       const systemPrompt = `你是一位命运先知。请生成一条今日谶语。
@@ -1493,6 +1704,73 @@ ${choiceLegacyText}
       res.status(500).json({
         success: false,
         message: '生成谶语失败: ' + (error.response?.data?.error?.message || error.message),
+      });
+    }
+  },
+
+  // 生成死亡叙事（AI根据上下文写死亡场景）
+  async generateDeathNarrative(req: Request, res: Response) {
+    try {
+      const userId = (req as any).userId;
+      const { character, history, deathCause, world } = req.body;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          aiProvider: true,
+          aiApiKeyEncrypted: true,
+          aiModel: true,
+          aiBaseUrl: true,
+        },
+      });
+
+      if (!user || !user.aiApiKeyEncrypted) {
+        return res.status(400).json({ success: false, message: '请先配置 API Key' });
+      }
+
+      const apiKey = decryptApiKey(user.aiApiKeyEncrypted);
+      const provider = (user.aiProvider || 'deepseek') as AIProvider;
+
+      const aiService = new AIService({
+        provider,
+        apiKey,
+        model: user.aiModel || undefined,
+        baseUrl: user.aiBaseUrl || undefined,
+      });
+
+      const recentEvents = (history || []).slice(-3)
+        .map((h: any) => {
+          const age = h.year !== undefined ? `${h.year}岁` : '';
+          return `${age} ${(h.narrative || '').replace(/^\d+岁\s*[—-]\s*/, '').trim()}`;
+        }).join('；');
+
+      const systemPrompt = `你是一位人生编年史作者。为角色撰写一段死亡场景，要求：
+1. 25-60字，画面感强，有具体动作和环境细节
+2. 描述角色死前在做什么、死亡发生的瞬间、以及最后的感受或遗物
+3. 格式："X岁 — 具体死亡场景描述"
+4. 语言凝练，不煽情不拖沓
+5. 必须符合"${world || '默认世界'}"的世界观`;
+
+      const userPrompt = `角色：${character?.name || '无名者'}，${character?.age || 0}岁
+性格：${character?.personality || '普通'}
+死因：${deathCause}
+近期经历：${recentEvents}
+
+请撰写死亡场景。只输出一行文本，不要任何前缀后缀。`;
+
+      const response = await aiService.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ]);
+
+      const text = response.content.trim();
+
+      res.json({ success: true, text });
+    } catch (error: any) {
+      console.error('Generate death narrative error:', error);
+      res.status(500).json({
+        success: false,
+        message: '生成死亡叙事失败: ' + (error.response?.data?.error?.message || error.message),
       });
     }
   },

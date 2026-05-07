@@ -2,6 +2,8 @@
 // 阶段06 - 游戏引擎核心
 // 负责：年龄推进、阶段切换、属性计算、事件触发
 
+import { calcWorldLifespan } from './worldConfig';
+
 export type LifeStage = 'infant' | 'child' | 'youth' | 'adult' | 'elder';
 
 // ==================== 天赋信息 ====================
@@ -80,6 +82,11 @@ export interface GameEvent {
   narrative: string;
   choices: EventChoice[];
   type: 'milestone' | 'random' | 'crisis' | 'choice';
+  /** 从AI节点携带的元数据，用于创建历史记录 */
+  yearsPassed?: number;
+  eventType?: string;
+  consequences?: string[];
+  statusChanges?: Partial<LifeStatus>;
 }
 
 export interface EventChoice {
@@ -99,13 +106,11 @@ export interface AttributeEffects {
 // 扩展的历史记录，现在代表一个人生节点
 export interface GameHistory {
   year: number;
-  event: string;           // 事件标题
-  narrative: string;       // 展示文本（人生节点格式）
+  narrative: string;       // 展示文本（人生节点格式，含年龄前缀）
   choice: string;          // 玩家做出的选择文本
   effects: AttributeEffects;
   yearsPassed?: number;    // 距离上一次的年龄跨度
   eventType?: string;      // 事件类型
-  summary?: string;        // 事件摘要
   consequences?: string[]; // 事件后果
   statusChanges?: Partial<LifeStatus>; // 状态变化
   isDeath?: boolean;       // 是否是死亡节点
@@ -170,10 +175,13 @@ export interface DerivedStats {
 
 export function calculateDerivedStats(character: GameCharacter): DerivedStats {
   const { body, mind, charm, fate } = character.attributes;
+  const world = character.world || '地球 Online';
 
-  // 基础计算
+  // 使用世界特定寿命公式
+  const lifespan = calcWorldLifespan(world, body, mind, fate);
+
+  // 其他衍生属性保持不变（跨世界通用）
   const health = Math.round(body * 8 + fate * 2 + 40);
-  const lifespan = Math.round(60 + body * 3 + fate * 4 + mind * 1);
   const reputation = Math.round(charm * 5 + mind * 3 + fate * 2);
   const happiness = Math.round(50 + charm * 3 + fate * 2 - Math.abs(10 - body) * 2);
   const wealth = Math.round(mind * 3 + charm * 2 + fate * 4 + 20);
@@ -181,7 +189,7 @@ export function calculateDerivedStats(character: GameCharacter): DerivedStats {
 
   return {
     health: Math.min(100, Math.max(1, health)),
-    lifespan: Math.min(120, Math.max(1, lifespan)),
+    lifespan: lifespan,
     reputation: Math.min(100, Math.max(1, reputation)),
     happiness: Math.min(100, Math.max(1, happiness)),
     wealth: Math.min(100, Math.max(1, wealth)),
@@ -340,14 +348,12 @@ export function checkDeath(character: GameCharacter): {
 
 export function addHistoryEntry(
   state: GameState,
-  event: string,
   narrative: string,
   choice: string,
   effects: AttributeEffects,
   options?: {
     yearsPassed?: number;
     eventType?: string;
-    summary?: string;
     consequences?: string[];
     statusChanges?: Partial<LifeStatus>;
     isDeath?: boolean;
@@ -356,13 +362,11 @@ export function addHistoryEntry(
 ): GameState {
   const entry: GameHistory = {
     year: state.character.age,
-    event,
     narrative,
     choice,
     effects,
     yearsPassed: options?.yearsPassed,
     eventType: options?.eventType,
-    summary: options?.summary,
     consequences: options?.consequences,
     statusChanges: options?.statusChanges,
     isDeath: options?.isDeath,

@@ -13,7 +13,7 @@ interface SaveData {
     desire?: string;
     isAlive?: boolean;
   };
-  history: Array<{ year: number; event: string; narrative?: string; choice: string }>;
+  history: Array<{ year: number; narrative: string; choice: string }>;
   gameStatus?: string;
   updatedAt: string;
 }
@@ -133,6 +133,11 @@ export default function HomeTab({ showToast }: HomeTabProps) {
     }
   };
 
+  // 判断存档是否已死亡
+  const isDead = () => {
+    return activeSave?.gameStatus === 'dead' || activeSave?.character?.isAlive === false;
+  };
+
   const handleContinue = async () => {
     if (!activeSave) {
       showToast('无存档，请先创建角色');
@@ -140,7 +145,11 @@ export default function HomeTab({ showToast }: HomeTabProps) {
     }
     setLoading(true);
     try {
-      navigate(`/game?saveId=${activeSave.id}`);
+      if (isDead()) {
+        navigate(`/settlement?saveId=${activeSave.id}`);
+      } else {
+        navigate(`/game?saveId=${activeSave.id}`);
+      }
     } catch {
       showToast('进入存档失败');
       setLoading(false);
@@ -152,8 +161,7 @@ export default function HomeTab({ showToast }: HomeTabProps) {
     if (!activeSave) return '诸生命线，于此垂落。尚无铭刻之命线，请新建人生或从档案中选择。';
     if (activeSave.history && activeSave.history.length > 0) {
       const lastHistory = activeSave.history[activeSave.history.length - 1];
-      if (lastHistory.narrative) return lastHistory.narrative;
-      return lastHistory.event;
+      return lastHistory.narrative;
     }
     return `${activeSave.character.personality || ''}的${activeSave.character.name}，渴望${activeSave.character.desire || '未知的命运'}。`;
   };
@@ -512,7 +520,7 @@ export default function HomeTab({ showToast }: HomeTabProps) {
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
-          {loading ? '加载中...' : activeSave ? '继续此生' : '无存档'}
+          {loading ? '加载中...' : activeSave ? (isDead() ? '查看总结' : '继续此生') : '无存档'}
         </button>
 
         <NewLifeButton />
