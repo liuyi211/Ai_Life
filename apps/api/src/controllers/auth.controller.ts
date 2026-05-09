@@ -141,7 +141,7 @@ export const authController = {
     }
   },
 
-  // 访客登录（自动创建/复用 guest 账号，使用默认 API 配置）
+  // 访客登录（每次创建独立账号，使用默认 API 配置）
   async guestLogin(req: Request, res: Response) {
     try {
       const guestApiKey = process.env.GUEST_API_KEY;
@@ -155,31 +155,18 @@ export const authController = {
         });
       }
 
-      // 查找或创建 guest 用户
-      let user = await prisma.user.findUnique({ where: { username: 'guest' } });
-
-      if (!user) {
-        const randomPassword = crypto.randomBytes(16).toString('hex');
-        user = await prisma.user.create({
-          data: {
-            username: 'guest',
-            passwordHash: await bcrypt.hash(randomPassword, 10),
-            aiProvider: guestProvider,
-            aiApiKeyEncrypted: encryptApiKey(guestApiKey),
-            aiModel: guestModel,
-          },
-        });
-      } else {
-        // 确保 API 配置保持最新
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            aiProvider: guestProvider,
-            aiApiKeyEncrypted: encryptApiKey(guestApiKey),
-            aiModel: guestModel,
-          },
-        });
-      }
+      // 每次访客登录创建独立账号，隔离数据
+      const guestId = crypto.randomBytes(4).toString('hex');
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const user = await prisma.user.create({
+        data: {
+          username: `guest_${guestId}`,
+          passwordHash: await bcrypt.hash(randomPassword, 10),
+          aiProvider: guestProvider,
+          aiApiKeyEncrypted: encryptApiKey(guestApiKey),
+          aiModel: guestModel,
+        },
+      });
 
       const token = jwt.sign(
         { userId: user.id, username: user.username },

@@ -30,7 +30,6 @@ export default function CreationPage() {
     redrawTalents,
     toggleTalent,
     toggleLegacy,
-    randomAll,
     handleCreate,
     openSheet,
     closeSheet,
@@ -121,39 +120,6 @@ export default function CreationPage() {
             命运捏造
           </h1>
         </div>
-
-        <button
-          onClick={randomAll}
-          className="grid place-items-center"
-          style={{
-            width: '44px',
-            height: '44px',
-            border: '1px solid rgba(34,29,24,0.28)',
-            background: 'rgba(248,244,236,0.38)',
-            color: '#221d18',
-            fontFamily: "'Cormorant Garamond', 'Noto Serif SC', serif",
-            fontSize: '20px',
-            cursor: 'pointer',
-            transition: '.24s ease',
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = 'translateY(2px)';
-            e.currentTarget.style.borderColor = '#7a2020';
-            e.currentTarget.style.color = '#7a2020';
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(34,29,24,0.28)';
-            e.currentTarget.style.color = '#221d18';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(34,29,24,0.28)';
-            e.currentTarget.style.color = '#221d18';
-          }}
-        >
-          骰
-        </button>
       </header>
 
       <StepProgress step={step} onStepClick={goStep} />

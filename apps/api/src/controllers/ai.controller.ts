@@ -92,6 +92,31 @@ function getDesireDescription(desire: string): string {
   return map[desire] || '没有特别强烈的欲望，随波逐流';
 }
 
+/** 属性 → 叙事行动指引（仅用于系统提示词） */
+function getAttributeNarrativeRules(body: number, mind: number, charm: number, fate: number): string {
+  const bodyLine = body <= 3 ? `体魄${body}（羸弱）：叙事中涉及体力、战斗、劳作时，角色必处劣势或失败，易受伤力竭`
+    : body <= 5 ? `体魄${body}（虚弱）：体力勉强应付日常，战斗中处于劣势`
+    : body <= 7 ? `体魄${body}（正常）：体力足够应付日常，不拖后腿也非优势`
+    : `体魄${body}（强健）：体力充沛，战斗和劳作中表现突出，可承担高强度任务`;
+
+  const mindLine = mind <= 3 ? `悟性${mind}（愚钝）：学习任何新知识都需要远超常人的时间，容易被误导欺骗`
+    : mind <= 5 ? `悟性${mind}（迟缓）：学习进展缓慢，理解复杂事物需要反复琢磨`
+    : mind <= 7 ? `悟性${mind}（聪慧）：学习能力强，能较快掌握新知识和技能`
+    : `悟性${mind}（卓越）：天纵之才，可看透事物本质，数月之功抵他人数年`;
+
+  const charmLine = charm <= 3 ? `羁绊${charm}（疏离）：不善交际，说话容易得罪人，难以获得他人帮助`
+    : charm <= 5 ? `羁绊${charm}（内向）：社交能力平平，人脉有限，不会主动结交`
+    : charm <= 7 ? `羁绊${charm}（亲和）：人际关系良好，交谈中容易获得好感与机会`
+    : `羁绊${charm}（卓越）：具有天然吸引力，言语间便可获得信任与追随，贵人自来`;
+
+  const fateLine = fate <= 3 ? `气运${fate}（坎坷）：叙事中必有波折或挫折，好事多磨，坏事接踵而至`
+    : fate <= 5 ? `气运${fate}（平淡）：运气平平，人生起伏正常，没有特别的幸运或不幸`
+    : fate <= 7 ? `气运${fate}（顺遂）：运气较好，常有意外之喜，关键时刻能化险为夷`
+    : `气运${fate}（天眷）：天命所归，关键时刻总有转机，机缘不期而至`;
+
+  return `${bodyLine}\n${mindLine}\n${charmLine}\n${fateLine}`;
+}
+
 /** 
  * 格式化历史段落为摘要文本
  * 将多个事件合并为一段连贯的摘要
@@ -180,11 +205,11 @@ function buildPreGenSystemPrompt(
   stage: string,
 ): string {
   const stageSpan: Record<string, string> = {
-    infant: '2-4年',
-    child: '3-6年',
-    youth: '2-5年',
-    adult: '4-15年（修仙/神话取上限，地球/末日落地下限）',
-    elder: '5-20年（寿命越长上限越高）',
+    infant: '1-3年',
+    child: '2-4年',
+    youth: '1-3年',
+    adult: '3-8年（修仙/神话取上限，地球/末日落地下限）',
+    elder: '3-12年（寿命越长上限越高）',
   };
 
   return `你是人生编年史作者。继续为角色生成下一个人生节点。
@@ -245,7 +270,7 @@ async function preGenChain(
 
       const userPrompt = `${historyContext}【角色】${character?.name || '无名者'}，${character?.age || 0}岁，${stage}，${character?.personality || '普通'}，渴望${character?.desire || '无'}
 天赋：${(character?.talents || []).map((t: any) => t.name || t).join('、') || '无'}
-
+${character?.customNote ? `【自定义设定】${character.customNote}\n` : ''}
 请生成下一个人生节点。只输出JSON。`;
 
       const response = await aiService.chat([
@@ -269,6 +294,34 @@ async function preGenChain(
   setImmediate(() =>
     preGenChain(userId, user, nextState.character, nextState.lifeStatus, nextState.history, nextState.stage, depth - 1)
   );
+}
+
+/** 根据世界和阶段，生成死亡叙事应遵守的合理性指引 */
+function getStageDeathGuidance(lifeStage: string, world: string): string {
+  const isEarth = world === '地球 Online';
+  const labels: Record<string, string> = {
+    infant: '幼年(0-6)',
+    child: '少年(7-12)',
+    youth: '青年(13-18)',
+    adult: '成年(19-60)',
+    elder: '终焉(61+)',
+  };
+  const label = labels[lifeStage] || '';
+
+  if (lifeStage === 'infant' || lifeStage === 'child') {
+    return `${label} — 死因必须是外力所致（疾病、天灾、兽袭、家庭牵连），角色自身不应有主动冒险行为，不应涉及高阶功法/丹药/修炼事故`;
+  }
+  if (lifeStage === 'youth') {
+    if (isEarth) {
+      return `${label} — 可涉及事故、疾病、校园/社会冲突，不应涉及职场高层斗争或自然老死`;
+    }
+    return `${label} — 可涉及初阶修炼事故、野外遇险、宗门试炼意外，不应涉及天劫、高阶丹药炸炉、大境界突破失败`;
+  }
+  if (lifeStage === 'adult') {
+    return `${label} — 不受限制，可以涉及${world}中任何该世界合理的死因`;
+  }
+  // elder
+  return `${label} — 偏向衰老、旧伤复发、暗疾发作、寿元尽头，意外死因也应合乎老年体态`;
 }
 
 export const aiController = {
@@ -787,8 +840,10 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
       const narrativeAttrCharm = character?.attributes?.charm || 5;
       const narrativeAttrFate = character?.attributes?.fate || 5;
       const narrativeAttrDesc = getAttributeDescription(narrativeAttrBody, narrativeAttrMind, narrativeAttrCharm, narrativeAttrFate);
+      const narrativeAttrRules = getAttributeNarrativeRules(narrativeAttrBody, narrativeAttrMind, narrativeAttrCharm, narrativeAttrFate);
       const narrativePersonality = character?.personality || '普通';
       const narrativeDesire = character?.desire || '无';
+      const narrativeCustomNote = character?.customNote || '';
 
       const systemPrompt = `你是一位人生编年史作者。为人生模拟器生成下一条人生节点。
 
@@ -801,10 +856,10 @@ ${worldDeathNote}
 【角色设定影响规则 — 必须严格遵守】
 1. **天赋必须持续影响**：角色的天赋能力必须持续影响人生事件的走向。有天赋的角色在关键时刻会展现出与众不同的能力。
 2. **遗产必须持续体现**：角色携带的遗产必须持续体现在事件中（家族背景影响社交、初始物品在关键时刻发挥作用等）。
-3. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
+3. **属性值影响事件结果**：属性值直接影响事件的成功与否。以下为叙事指引：
 
-【属性值含义】
-${narrativeAttrDesc}
+【属性叙事规则】
+${narrativeAttrRules}
 
 【绝对规则】
 1. **你必须严格遵守上述世界观设定**。所有事件、身份、物品、能力、人际关系都必须符合这个世界的规则。
@@ -837,8 +892,9 @@ ${narrativeAttrDesc}
 5. **text 字段要求**（编年史风格）：
    - 格式必须是："X岁 — 简练事件描述"
    - 必须包含一个具体事件，但要极简练，一行概括这个年龄段的经历
-   - **15-80字**，信息密度高，可展开关键转折但避免冗长
-   - **严禁超过80字**，超长文本会导致保存错误
+    - **15-80字**，信息密度高，可展开关键转折但避免冗长
+    - **严禁超过80字**，超长文本会导致保存错误
+    - **严禁在叙事中出现属性数字**（如"悟性9"），必须转换为文字的属性描述（如"悟性绝佳"、"体质羸弱"）
    - 风格：人生编年史/大事记，一句一事件，不展开细节
    - **必须承接"此前人生节点"的故事**，不能突兀跳转
    - 体现角色的身份、地点、能力、物品、关系等当前状态
@@ -848,13 +904,18 @@ ${narrativeAttrDesc}
 
 6. **yearsPassed 要求**：
    - 根据人生阶段决定时间跨度：
-     - 幼年(infant)：2-4年
-     - 少年(child)：3-6年
-     - 青年(youth)：2-5年
-     - 成年(adult)：4-15年（修仙/神话世界可取上限，地球/末日取下限）
-     - 终焉(elder)：5-20年（寿命越长上限越高）
-   - 闭关/修炼/重大事件可取更大跨度（10-30年，仅修仙/真武/神话世界）
+     - 幼年(infant)：1-3年
+     - 少年(child)：2-4年
+     - 青年(youth)：1-3年
+     - 成年(adult)：3-8年（修仙/神话世界可取上限，地球/末日取下限）
+     - 终焉(elder)：3-12年（寿命越长上限越高）
+   - 闭关/修炼/重大事件可取更大跨度（10-20年，仅修仙/真武/神话世界）
    - newAge = 当前年龄 + yearsPassed
+
+7. **桥接句子规则**：
+   - 如果 yearsPassed > 1，text 开头必须用一句概括这段时间（10-20字），再写具体事件
+   - 格式："X岁 — N年间你[概括]。[简练事件描述]"
+   - 如果 yearsPassed <= 1，直接写具体事件即可
    - **严禁超过该世界的人类寿命上限**
 
 7. **eventType 可选值**：birth, loss, training, breakthrough, failure, migration, meeting, betrayal, injury, gain, death, work, revenge, aging, family, other
@@ -917,6 +978,8 @@ ${narrativeLegacyText}
 6. **必须符合属性值**：属性值高的领域角色应该表现得更优秀，属性值低的领域角色应该遇到困难或挫折。
 7. **必须严格遵守"${worldName}"的世界观设定**。
 8. **text字段严禁超过80字**，可展开关键转折但避免拖沓，不写无意义的对话和场景细节。
+9. **严禁在叙事中出现属性数字**，如"悟性9"须写作"悟性绝佳"
+${narrativeCustomNote ? `\n10. **自定义设定 — 最高优先级**：以下设定必须在此节点中体现：${narrativeCustomNote}` : ''}
 
 直接输出 JSON，不要任何其他内容。`;
 
@@ -1118,8 +1181,10 @@ ${narrativeLegacyText}
       const narrativeAttrCharm = character?.attributes?.charm || 5;
       const narrativeAttrFate = character?.attributes?.fate || 5;
       const narrativeAttrDesc = getAttributeDescription(narrativeAttrBody, narrativeAttrMind, narrativeAttrCharm, narrativeAttrFate);
+      const narrativeAttrRules = getAttributeNarrativeRules(narrativeAttrBody, narrativeAttrMind, narrativeAttrCharm, narrativeAttrFate);
       const narrativePersonality = character?.personality || '普通';
       const narrativeDesire = character?.desire || '无';
+      const narrativeCustomNote = character?.customNote || '';
 
       const systemPrompt = `你是一位人生编年史作者。为人生模拟器生成下一条人生节点。
 
@@ -1132,10 +1197,10 @@ ${worldDeathNote}
 【角色设定影响规则 — 必须严格遵守】
 1. **天赋必须持续影响**：角色的天赋能力必须持续影响人生事件的走向。有天赋的角色在关键时刻会展现出与众不同的能力。
 2. **遗产必须持续体现**：角色携带的遗产必须持续体现在事件中（家族背景影响社交、初始物品在关键时刻发挥作用等）。
-3. **属性值影响事件结果**：属性值不是抽象数字，而是角色在这个世界中的真实能力基础，直接影响事件的成功与否。
+3. **属性值影响事件结果**：属性值直接影响事件的成功与否。以下为叙事指引：
 
-【属性值含义】
-${narrativeAttrDesc}
+【属性叙事规则】
+${narrativeAttrRules}
 
 【绝对规则】
 1. **你必须严格遵守上述世界观设定**。所有事件、身份、物品、能力、人际关系都必须符合这个世界的规则。
@@ -1168,8 +1233,9 @@ ${narrativeAttrDesc}
 5. **text 字段要求**（编年史风格）：
    - 格式必须是："X岁 — 简练事件描述"
    - 必须包含一个具体事件，但要极简练，一行概括这个年龄段的经历
-   - **15-80字**，信息密度高，可展开关键转折但避免冗长
-   - **严禁超过80字**，超长文本会导致保存错误
+    - **15-80字**，信息密度高，可展开关键转折但避免冗长
+    - **严禁超过80字**，超长文本会导致保存错误
+    - **严禁在叙事中出现属性数字**（如"悟性9"），必须转换为文字的属性描述（如"悟性绝佳"、"体质羸弱"）
    - 风格：人生编年史/大事记，一句一事件，不展开细节
    - **必须承接"此前人生节点"的故事**，不能突兀跳转
    - 体现角色的身份、地点、能力、物品、关系等当前状态
@@ -1179,13 +1245,18 @@ ${narrativeAttrDesc}
 
 6. **yearsPassed 要求**：
    - 根据人生阶段决定时间跨度：
-     - 幼年(infant)：2-4年
-     - 少年(child)：3-6年
-     - 青年(youth)：2-5年
-     - 成年(adult)：4-15年（修仙/神话世界可取上限，地球/末日取下限）
-     - 终焉(elder)：5-20年（寿命越长上限越高）
-   - 闭关/修炼/重大事件可取更大跨度（10-30年，仅修仙/真武/神话世界）
+     - 幼年(infant)：1-3年
+     - 少年(child)：2-4年
+     - 青年(youth)：1-3年
+     - 成年(adult)：3-8年（修仙/神话世界可取上限，地球/末日取下限）
+     - 终焉(elder)：3-12年（寿命越长上限越高）
+   - 闭关/修炼/重大事件可取更大跨度（10-20年，仅修仙/真武/神话世界）
    - newAge = 当前年龄 + yearsPassed
+
+7. **桥接句子规则**：
+   - 如果 yearsPassed > 2，text 开头必须用一句概括这段时间（10-20字），再写具体事件
+   - 格式："X岁 — [概括过了几年，发生了什么]。[简练事件描述]"
+   - 如果 yearsPassed <= 2，直接写具体事件即可
    - **严禁超过该世界的人类寿命上限**
 
 7. **eventType 可选值**：birth, loss, training, breakthrough, failure, migration, meeting, betrayal, injury, gain, death, work, revenge, aging, family, other
@@ -1251,6 +1322,7 @@ ${narrativeLegacyText}
 6. **必须符合属性值**：属性值高的领域角色应该表现得更优秀，属性值低的领域角色应该遇到困难或挫折。
 7. **必须严格遵守"${worldName}"的世界观设定**。
 8. **text字段严禁超过80字**，可展开关键转折但避免拖沓，不写无意义的对话和场景细节。
+${narrativeCustomNote ? `\n9. **自定义设定 — 最高优先级**：以下设定必须在此节点中体现：${narrativeCustomNote}` : ''}
 
 直接输出 JSON，不要任何其他内容。`;
 
@@ -1744,19 +1816,28 @@ ${choiceLegacyText}
           return `${age} ${(h.narrative || '').replace(/^\d+岁\s*[—-]\s*/, '').trim()}`;
         }).join('；');
 
+      const worldDeathNote = getWorldDeathNote(world || '');
+      const stageGuidance = getStageDeathGuidance(character?.lifeStage || '', world || '');
+
       const systemPrompt = `你是一位人生编年史作者。为角色撰写一段死亡场景，要求：
 1. 25-60字，画面感强，有具体动作和环境细节
 2. 描述角色死前在做什么、死亡发生的瞬间、以及最后的感受或遗物
-3. 格式："X岁 — 具体死亡场景描述"
+3. 格式：以 "X岁 — " 开头
 4. 语言凝练，不煽情不拖沓
-5. 必须符合"${world || '默认世界'}"的世界观`;
 
-      const userPrompt = `角色：${character?.name || '无名者'}，${character?.age || 0}岁
-性格：${character?.personality || '普通'}
-死因：${deathCause}
+【世界观设定】${world || '默认世界'}
+【死亡规则】${worldDeathNote}
+
+【阶段合理性约束 — 必须严格遵守】
+${stageGuidance}
+这意味着你要根据角色的年龄阶段，写出合乎该阶段能力的死亡场景。不要写超出角色年龄和能力范围的死法。`;
+
+      const userPrompt = `角色：${character?.name || '无名者'}，${character?.age || 0}岁，${character?.personality || '普通'}，${character?.desire || '无'}
+世界：${character?.world || world || '未知'}
+${character?.customNote ? `自定义设定：${character.customNote}\n` : ''}死因：${deathCause}
 近期经历：${recentEvents}
 
-请撰写死亡场景。只输出一行文本，不要任何前缀后缀。`;
+请撰写死亡场景`;
 
       const response = await aiService.chat([
         { role: 'system', content: systemPrompt },

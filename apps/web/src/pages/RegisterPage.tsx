@@ -44,7 +44,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page relative w-full h-screen flex flex-col overflow-hidden" style={{ padding: '38px 26px 30px', zIndex: 1 }}>
+    <div className="auth-page relative w-full flex flex-col" style={{ minHeight: '100dvh', padding: '38px 26px 30px', zIndex: 1 }}>
       {/* Sigil */}
       <div className="absolute pointer-events-none" style={{ top: '84px', left: '50%', width: '342px', height: '342px', transform: 'translateX(-50%)', border: '1px solid rgba(34,29,24,0.08)', borderRadius: '50%', zIndex: -1, animation: 'breathe 5.8s ease-in-out infinite' }}>
         <div style={{ position: 'absolute', inset: '34px', borderRadius: '50%', border: '1px solid rgba(34,29,24,0.07)' }} />
@@ -77,7 +77,7 @@ export default function RegisterPage() {
       </header>
 
       {/* Card */}
-      <section className="relative" style={{ height: '430px', flex: '0 0 430px', padding: '24px 20px 22px', border: '1px solid rgba(34,29,24,0.28)', background: 'linear-gradient(180deg, rgba(248,244,236,0.60), rgba(238,233,223,0.36)), radial-gradient(circle at 50% 6%, rgba(159,124,62,0.15), transparent 35%)', boxShadow: '0 24px 70px rgba(34,29,24,0.13)', overflow: 'hidden' }}>
+      <section className="auth-card relative" style={{ height: '430px', flex: '0 0 430px', padding: '24px 20px 22px', border: '1px solid rgba(34,29,24,0.28)', background: 'linear-gradient(180deg, rgba(248,244,236,0.60), rgba(238,233,223,0.36)), radial-gradient(circle at 50% 6%, rgba(159,124,62,0.15), transparent 35%)', boxShadow: '0 24px 70px rgba(34,29,24,0.13)', overflow: 'hidden' }}>
         <div className="absolute pointer-events-none" style={{ inset: '12px', border: '1px solid rgba(34,29,24,0.09)' }} />
         {[
           { left: '12px', top: '12px', borderLeft: '1px solid', borderTop: '1px solid' },
@@ -165,13 +165,24 @@ export default function RegisterPage() {
       </footer>
 
       <style>{`
+        /* dvh fallback: 不支持 dvh 的浏览器用 vh */
+        @supports not (height: 100dvh) {
+          .auth-page { min-height: 100vh !important; }
+        }
         @media (max-width: 380px) {
           .auth-page { padding-left: 22px !important; padding-right: 22px !important; }
           .auth-page h1 { font-size: 44px !important; letter-spacing: 8px !important; }
         }
+        /* 小屏幕缩小卡片以防溢出 */
+        @media (max-height: 750px) {
+          .auth-card { height: 360px !important; flex: 0 0 360px !important; }
+        }
+        @media (max-height: 650px) {
+          .auth-card { height: 320px !important; flex: 0 0 320px !important; }
+        }
         @media (min-width: 768px) {
           body { display: flex !important; align-items: center !important; justify-content: center !important; background: #d4c8b8 !important; }
-          .auth-page { width: 430px !important; height: 860px !important; max-height: 96vh !important; background: #eee9df !important; box-shadow: 0 30px 100px rgba(34,29,24,0.24) !important; }
+          .auth-page { width: 430px !important; min-height: 860px !important; max-height: 96vh !important; height: auto !important; background: #eee9df !important; box-shadow: 0 30px 100px rgba(34,29,24,0.24) !important; }
           #auth-toast { bottom: calc(50% - 370px) !important; }
         }
       `}</style>

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -64,7 +64,7 @@ export const aiApi = {
   updateConfig: (data: { provider: string; apiKey?: string; model?: string; baseUrl?: string }) =>
     api.put('/ai/config', data),
   clearConfig: () => api.delete('/ai/config'),
-  testConnection: (data?: { provider?: string; apiKey?: string; model?: string }) =>
+  testConnection: (data?: { provider?: string; apiKey?: string; model?: string; baseUrl?: string }) =>
     api.post('/ai/test', data),
   generateBackground: (data: { character: any }) =>
     api.post('/ai/background', data),

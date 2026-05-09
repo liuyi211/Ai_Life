@@ -38,6 +38,7 @@ export interface GameCharacter {
   };
   talents: TalentInfo[];    // 完整天赋信息（含描述）
   legacy: LegacyInfo[];     // 完整遗产信息（含描述）
+  customNote?: string;      // 自定义设定
   isAlive: boolean;
 }
 
@@ -411,6 +412,7 @@ export function createGameStateFromSave(saveData: any): GameState {
       talents: normalizeTalents(character.talents),
       legacy: normalizeLegacy(character.legacy),
       worldConfig: character.worldConfig || '',
+      customNote: character.customNote || '',
       isAlive: character.isAlive !== undefined ? character.isAlive : true,
     },
     lifeStatus: saveData.lifeStatus || createDefaultLifeStatus(),
@@ -435,6 +437,7 @@ export function serializeGameState(state: GameState): any {
       lifeStage: state.character.lifeStage,
       personality: state.character.personality,
       desire: state.character.desire,
+      customNote: state.character.customNote,
       attributes: state.character.attributes,
       talents: state.character.talents.map(t => ({ name: t.name, desc: t.desc, rarity: t.rarity })),
       legacy: state.character.legacy.map(l => ({ name: l.name, desc: l.desc, rarity: l.rarity, source: l.source })),

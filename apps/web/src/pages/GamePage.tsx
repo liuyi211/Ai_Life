@@ -21,6 +21,7 @@ import {
   getWorldDeathConfig,
   getRandomAccident,
   getTransitionText,
+  getStageTransitionText,
 } from '../engine/worldConfig';
 
 // ==================== Toast Hook ====================
@@ -108,6 +109,7 @@ export default function GamePage() {
   const typingRef = useRef<{ index: number; timer: ReturnType<typeof setInterval> | null }>({ index: -1, timer: null });
   const hasInitializedRef = useRef(false);
   const gameStateRef = useRef<GameState | null>(null);
+  const transitionsUntilNext = useRef<number>(Math.floor(Math.random() * 3) + 3); // 每3-5个叙事插一个过渡
 
   // 同步 gameState 到 ref，确保 cleanup/unload 时读取最新状态
   useEffect(() => {
@@ -416,6 +418,25 @@ export default function GamePage() {
     setStoryState('AI 正在演算');
 
     try {
+      // 0. 检查是否该插入过渡节点（每 3-5 个叙事节点插入一次）
+      if (transitionsUntilNext.current <= 0) {
+        transitionsUntilNext.current = Math.floor(Math.random() * 3) + 3; // 重置计数器
+        const transitionText = getStageTransitionText(gameState.character.lifeStage);
+        const narrative = transitionText; // 不标年龄
+
+        const baseState: GameState = { ...gameState };
+        const newState = addHistoryEntry(baseState, narrative, '', {}, {
+          yearsPassed: 0, eventType: 'transition', consequences: [], isDeath: false,
+        });
+
+        setGameState(newState);
+        appendStoryEntry(narrative, 'system', undefined, true);
+        await saveGameState(newState, saveId);
+        setGenerating(false);
+        setStoryState('命运正在展开');
+        return;
+      }
+
       // 1. 调用AI生成结构化人生节点
       let node: any = null;
       try {
@@ -423,6 +444,7 @@ export default function GamePage() {
           character: {
             name: gameState.character.name,
             world: gameState.character.world,
+            worldConfig: gameState.character.worldConfig,
             gender: gameState.character.gender,
             age: gameState.character.age,
             personality: gameState.character.personality,
@@ -430,6 +452,7 @@ export default function GamePage() {
             attributes: gameState.character.attributes,
             talents: gameState.character.talents,
             legacy: gameState.character.legacy,
+            customNote: gameState.character.customNote || '',
           },
           lifeStatus: gameState.lifeStatus,
           history: gameState.history,
@@ -482,9 +505,12 @@ export default function GamePage() {
       const elderThreshold = Math.max(40, Math.round(derived.lifespan * 0.5));
       const elderDeath = newStage === 'elder' && newAge > elderThreshold
         && Math.random() < (newAge - elderThreshold) / (derived.lifespan - elderThreshold) * 0.3;
-      // 4c. 意外死亡（世界特定概率，仅在非寿元耗尽时触发）
+      // 4c. 意外死亡（按阶段加权：幼年极低，终焉增高）
+      const stageRisk: Record<string, number> = {
+        infant: 0.1, child: 0.3, youth: 0.6, adult: 1.0, elder: 1.5,
+      };
       const accidentDeath = !ageDeath
-        && Math.random() < worldCfg.accidentChance;
+        && Math.random() < worldCfg.accidentChance * (stageRisk[newStage] || 1.0);
 
       // 确定死因
       let deathCause = '';
@@ -511,7 +537,16 @@ export default function GamePage() {
         let aiDeathNarrative = deathNarrative;
         try {
           const deathRes = await aiApi.generateDeathNarrative({
-            character: { name: newCharacter.name, age: newCharacter.age, personality: newCharacter.personality },
+            character: {
+              name: newCharacter.name,
+              age: newCharacter.age,
+              personality: newCharacter.personality,
+              desire: newCharacter.desire,
+              lifeStage: newCharacter.lifeStage,
+              world: newCharacter.world,
+              attributes: newCharacter.attributes,
+              talents: newCharacter.talents,
+            },
             history: gameState.history,
             deathCause,
             world: newCharacter.world,
@@ -646,6 +681,7 @@ export default function GamePage() {
 
       // 8. 保存（确保 currentEvent 也被持久化）
       await saveGameState(stateToSave, saveId);
+      transitionsUntilNext.current--; // 倒数，到0时插入过渡
     } catch (err) {
       toast.show('推进人生失败');
       setStoryState('命运正在展开');
@@ -718,6 +754,7 @@ export default function GamePage() {
     // 选择了之后，重置抉择计数器（随机 5-8）
     choiceCounterRef.current = Math.floor(Math.random() * 4) + 5;
     await saveGameState(newState, saveId);
+    if (newState.gameStatus !== 'dead') transitionsUntilNext.current--;
   }, [gameState, choiceMode, saveId, toast.show, statBump.trigger, appendStoryEntry]);
 
   // 获取显示文本（打字机效果）
@@ -774,7 +811,7 @@ export default function GamePage() {
             </div>
             <div style={pageStyles.topMeta}>
               {character.world} / {character.gender === 'male' ? '男' : character.gender === 'female' ? '女' : '未知'}
-              {character.talents.length > 0 && ` / 天赋：${character.talents[0]}`}
+              {character.talents.length > 0 && ` / 天赋：${typeof character.talents[0] === 'object' ? (character.talents[0] as any).name : character.talents[0]}`}
             </div>
           </div>
           <button

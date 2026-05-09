@@ -166,12 +166,42 @@ export default function HomeTab({ showToast }: HomeTabProps) {
     return `${activeSave.character.personality || ''}的${activeSave.character.name}，渴望${activeSave.character.desire || '未知的命运'}。`;
   };
 
-  // 计算进度（0-100）
-  const getProgress = () => {
-    if (!activeSave) return 0;
+  // 计算阶段进度（5 阶段各 20%，当前阶段高亮）
+  const getStageProgress = () => {
+    const idx = getStageIndex();
+    return (idx + 1) * 20;
+  };
+
+  // 获取阶段中文名
+  const getStageName = () => {
+    const stageNames: Record<string, string> = {
+      infant: '幼年', child: '少年', youth: '青年', adult: '成年', elder: '终焉',
+    };
+    return stageNames[activeSave?.character.lifeStage || ''] || '-';
+  };
+
+  // 计算属性
+  const getMetrics = () => {
+    if (!activeSave) {
+      return [
+        { value: '-', label: '年龄' },
+        { value: '-', label: '抉择' },
+        { value: '-', label: '属性' },
+        { value: '-', label: '阶段' },
+      ];
+    }
     const age = typeof activeSave.character.age === 'number' ? activeSave.character.age : parseInt(activeSave.character.age as string) || 0;
-    // 假设最大寿命 100 岁
-    return Math.min(100, Math.round((age / 100) * 100));
+    const choicesCount = activeSave.history?.filter((h: any) => h.choice).length || 0;
+    const attrs = activeSave.character as any;
+    const avgAttr = Math.round((((attrs.attributes?.body || 5) + (attrs.attributes?.mind || 5) + (attrs.attributes?.charm || 5) + (attrs.attributes?.fate || 5)) / 4) * 10) / 10;
+    const stageName = getStageName();
+
+    return [
+      { value: `${age}`, label: '年龄' },
+      { value: `${choicesCount}`, label: '抉择' },
+      { value: `${avgAttr}`, label: '属性' },
+      { value: stageName, label: '阶段' },
+    ];
   };
 
   // 计算当前阶段索引（0-4）
@@ -215,31 +245,10 @@ export default function HomeTab({ showToast }: HomeTabProps) {
     return stages[getStageIndex()] || 'I';
   };
 
-  // 计算属性
-  const getMetrics = () => {
-    if (!activeSave) {
-      return [
-        { value: '-', label: '进度' },
-        { value: '-', label: '因果' },
-        { value: '-', label: '命格' },
-        { value: '-', label: '年龄' },
-      ];
-    }
-    const age = typeof activeSave.character.age === 'number' ? activeSave.character.age : parseInt(activeSave.character.age as string) || 0;
-    const historyCount = activeSave.history?.length || 0;
-    // 命格评级
-    const grade = age < 20 ? 'C' : age < 40 ? 'B' : age < 60 ? 'A' : age < 80 ? 'A+' : 'S';
 
-    return [
-      { value: `${getProgress()}`, label: '进度' },
-      { value: `${historyCount}`, label: '因果' },
-      { value: grade, label: '命格' },
-      { value: `${age}`, label: '年龄' },
-    ];
-  };
 
   const description = getDescription();
-  const progress = getProgress();
+  const stageProgress = getStageProgress();
   const stageIndex = getStageIndex();
   const statusText = getStatusText();
   const worldDisplay = getWorldDisplay();
@@ -406,7 +415,7 @@ export default function HomeTab({ showToast }: HomeTabProps) {
                   position: 'absolute',
                   left: 0,
                   top: 0,
-                  width: `${progress}%`,
+                  width: `${stageProgress}%`,
                   height: '1px',
                   background: '#7a2020',
                 }}
