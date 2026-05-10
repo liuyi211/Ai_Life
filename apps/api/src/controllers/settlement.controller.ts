@@ -2,6 +2,16 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AIService, decryptApiKey, AIProvider } from '../services/ai.service';
 
+/** 安全日志：剥离 axios error.config 中的敏感 header */
+function logError(label: string, err: any): void {
+  if (err?.config) {
+    const safe = { message: err.message, status: err.response?.status, data: err.response?.data };
+    console.error(label, safe);
+  } else {
+    console.error(label, err);
+  }
+}
+
 export const settlementController = {
   // 结算存档
   async settle(req: Request, res: Response) {
@@ -50,7 +60,7 @@ export const settlementController = {
         save,
       });
     } catch (error) {
-      console.error('Settlement error:', error);
+      logError('Settlement error:', error);
       res.status(500).json({ success: false, message: '结算失败' });
     }
   },
@@ -135,7 +145,7 @@ ${historySummary}
 
       res.json({ success: true, summary, title, gradeDesc });
     } catch (error: any) {
-      console.error('Generate summary error:', error);
+      logError('Generate summary error:', error);
       res.status(500).json({
         success: false,
         message: '生成总结失败: ' + (error.response?.data?.error?.message || error.message),
@@ -173,7 +183,7 @@ ${historySummary}
         json: JSON.stringify(exportData, null, 2),
       });
     } catch (error) {
-      console.error('Export save error:', error);
+      logError('Export save error:', error);
       res.status(500).json({ success: false, message: '导出失败' });
     }
   },
@@ -206,7 +216,7 @@ ${historySummary}
         save,
       });
     } catch (error) {
-      console.error('Import save error:', error);
+      logError('Import save error:', error);
       res.status(500).json({ success: false, message: '导入失败' });
     }
   },
@@ -324,7 +334,7 @@ ${historySummary}
       sendEvent('complete', { success: true, summary: fullContent.trim(), title, gradeDesc });
       res.end();
     } catch (error: any) {
-      console.error('Stream summary error:', error);
+      logError('Stream summary error:', error);
       sendEvent('error', {
         message: '生成总结失败: ' + (error.response?.data?.error?.message || error.message),
       });
@@ -429,7 +439,7 @@ ${keyEvents}
         legacies = JSON.parse(jsonStr);
         if (!Array.isArray(legacies)) legacies = [];
       } catch (e) {
-        console.error('Parse legacies error:', e, 'Raw:', response.content);
+        logError('Parse legacies error:', e);
         legacies = [];
       }
 
@@ -438,7 +448,7 @@ ${keyEvents}
         legacies,
       });
     } catch (error: any) {
-      console.error('Generate legacies error:', error);
+      logError('Generate legacies error:', error);
       res.status(500).json({
         success: false,
         message: '生成遗产失败: ' + (error.response?.data?.error?.message || error.message),

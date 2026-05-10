@@ -1,4 +1,5 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 export type AIProvider =
   | 'openai'
@@ -519,26 +520,57 @@ export class AIService {
   }
 }
 
-// 简单的 API Key 加密/解密（使用环境变量中的密钥）
-const ENCRYPTION_KEY = process.env.AI_KEY_ENCRYPTION_SECRET || 'life-echo-ai-key-secret-2026';
+/**
+ * AES-256-GCM 加密/解密（替代旧 XOR 实现）
+ * 密钥从 AI_KEY_ENCRYPTION_SECRET 环境变量派生
+ * 输出格式：v1: + iv(12B) + ciphertext + tag(16B) → Base64
+ */
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const TAG_LENGTH = 16;
+const SALT = 'life-echo';
+
+function deriveKey(secret: string): Buffer {
+  return crypto.scryptSync(secret, SALT, 32);
+}
+
+function getEncryptionKey(): Buffer {
+  const secret = process.env.AI_KEY_ENCRYPTION_SECRET;
+  if (!secret) {
+    throw new Error('AI_KEY_ENCRYPTION_SECRET 环境变量未设置，请检查 .env');
+  }
+  return deriveKey(secret);
+}
 
 export function encryptApiKey(apiKey: string): string {
-  // 简单的 XOR 加密 + Base64
-  const key = ENCRYPTION_KEY;
-  let encrypted = '';
-  for (let i = 0; i < apiKey.length; i++) {
-    encrypted += String.fromCharCode(apiKey.charCodeAt(i) ^ key.charCodeAt(i % key.length));
-  }
-  return Buffer.from(encrypted).toString('base64');
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(apiKey, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return 'v1:' + Buffer.concat([iv, encrypted, tag]).toString('base64');
 }
 
 export function decryptApiKey(encryptedKey: string): string {
   try {
-    const key = ENCRYPTION_KEY;
-    const encrypted = Buffer.from(encryptedKey, 'base64').toString('binary');
+    // v1: AES-256-GCM
+    if (encryptedKey.startsWith('v1:')) {
+      const key = getEncryptionKey();
+      const raw = Buffer.from(encryptedKey.slice(3), 'base64');
+      const iv = raw.subarray(0, IV_LENGTH);
+      const tag = raw.subarray(raw.length - TAG_LENGTH);
+      const encrypted = raw.subarray(IV_LENGTH, raw.length - TAG_LENGTH);
+      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+      decipher.setAuthTag(tag);
+      return decipher.update(encrypted) + decipher.final('utf8');
+    }
+    // 旧格式：XOR+Base64（兼容过渡期）
+    const xorkey = process.env.AI_KEY_ENCRYPTION_SECRET || '';
+    if (!xorkey) return '';
+    const raw = Buffer.from(encryptedKey, 'base64').toString('binary');
     let decrypted = '';
-    for (let i = 0; i < encrypted.length; i++) {
-      decrypted += String.fromCharCode(encrypted.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    for (let i = 0; i < raw.length; i++) {
+      decrypted += String.fromCharCode(raw.charCodeAt(i) ^ xorkey.charCodeAt(i % xorkey.length));
     }
     return decrypted;
   } catch {

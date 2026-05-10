@@ -3,6 +3,16 @@ import { prisma } from '../lib/prisma';
 import { AIService, encryptApiKey, decryptApiKey, AIProvider } from '../services/ai.service';
 import { aiResultCache, generateCacheKey } from '../services/cache.service';
 
+/** 安全日志：剥离 axios error.config 中的敏感 header */
+function logError(label: string, err: any): void {
+  if (err?.config) {
+    const safe = { message: err.message, status: err.response?.status, data: err.response?.data };
+    console.error(label, safe);
+  } else {
+    console.error(label, err);
+  }
+}
+
 // 世界观描述映射
 const WORLD_DESCRIPTIONS: Record<string, string> = {
   '地球 Online': '现代地球社会。没有修仙、没有超能力。人生围绕家庭、学业、职业、经济、人际关系、健康、意外事件展开。科技水平与现实世界相同。',
@@ -354,7 +364,7 @@ export const aiController = {
 
       res.json({ success: true, config });
     } catch (error) {
-      console.error('Get AI config error:', error);
+      logError('Get AI config error:', error);
       res.status(500).json({ success: false, message: '获取 AI 配置失败' });
     }
   },
@@ -391,7 +401,7 @@ export const aiController = {
 
       res.json({ success: true, message: 'AI 配置已更新' });
     } catch (error) {
-      console.error('Update AI config error:', error);
+      logError('Update AI config error:', error);
       res.status(500).json({ success: false, message: '更新 AI 配置失败' });
     }
   },
@@ -412,7 +422,7 @@ export const aiController = {
 
       res.json({ success: true, message: 'API Key 已清除' });
     } catch (error) {
-      console.error('Clear AI config error:', error);
+      logError('Clear AI config error:', error);
       res.status(500).json({ success: false, message: '清除配置失败' });
     }
   },
@@ -474,7 +484,7 @@ export const aiController = {
         response: response.content,
       });
     } catch (error: any) {
-      console.error('Test AI connection error:', error);
+      logError('Test AI connection error:', error);
       res.status(500).json({
         success: false,
         message: '连接失败: ' + (error.response?.data?.error?.message || error.message),
@@ -657,7 +667,7 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
         const jsonStr = content.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
         node = JSON.parse(jsonStr);
       } catch (e) {
-        console.error('Parse initial node error:', e, 'Raw:', response.content);
+        console.error('Parse initial node error:', e);
         // 返回一个默认的初始节点
         node = {
           yearsPassed: 0,
@@ -688,7 +698,7 @@ ${customNote ? `【自定义备注】\n${customNote}\n` : ''}
         node,
       });
     } catch (error: any) {
-      console.error('Generate background error:', error);
+      logError('Generate background error:', error);
       res.status(500).json({
         success: false,
         message: '生成初始节点失败: ' + (error.response?.data?.error?.message || error.message),
@@ -996,7 +1006,7 @@ ${narrativeCustomNote ? `\n10. **自定义设定 — 最高优先级**：以下�
         const jsonStr = content.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
         node = JSON.parse(jsonStr);
       } catch (e) {
-        console.error('Parse narrative node error:', e, 'Raw:', response.content);
+        logError('Parse narrative node error:', e);
         // 返回一个默认节点
         const { newAge, yearsAdvanced } = this.calculateAdvanceYears(currentAge, currentStage);
         node = {
@@ -1026,7 +1036,7 @@ ${narrativeCustomNote ? `\n10. **自定义设定 — 最高优先级**：以下�
         setImmediate(() => preGenChain(userId, ucfg, nextState.character, nextState.lifeStatus, nextState.history, nextState.stage, 2));
       }
     } catch (error: any) {
-      console.error('Generate narrative error:', error);
+      logError('Generate narrative error:', error);
       res.status(500).json({
         success: false,
         message: '生成人生节点失败: ' + (error.response?.data?.error?.message || error.message),
@@ -1350,7 +1360,7 @@ ${narrativeCustomNote ? `\n9. **自定义设定 — 最高优先级**：以下�
         const jsonStr = content.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
         node = JSON.parse(jsonStr);
       } catch (e) {
-        console.error('Parse narrative node error:', e, 'Raw:', fullContent);
+        logError('Parse narrative node error:', e);
         // fallback
         const { newAge, yearsAdvanced } = this.calculateAdvanceYears(currentAge, currentStage);
         node = {
@@ -1381,7 +1391,7 @@ ${narrativeCustomNote ? `\n9. **自定义设定 — 最高优先级**：以下�
 
       res.end();
     } catch (error: any) {
-      console.error('Generate narrative stream error:', error);
+      logError('Generate narrative stream error:', error);
       sendEvent('error', {
         message: '生成人生节点失败: ' + (error.response?.data?.error?.message || error.message),
       });
@@ -1523,7 +1533,7 @@ ${choiceLegacyText}
           choices = JSON.parse(jsonMatch[0]);
         }
       } catch (e) {
-        console.error('Parse choices error:', e);
+        logError('Parse choices error:', e);
       }
 
       res.json({
@@ -1531,7 +1541,7 @@ ${choiceLegacyText}
         choices,
       });
     } catch (error: any) {
-      console.error('Generate choices error:', error);
+      logError('Generate choices error:', error);
       res.status(500).json({
         success: false,
         message: '生成选择失败: ' + (error.response?.data?.error?.message || error.message),
@@ -1620,7 +1630,7 @@ ${choiceLegacyText}
         const jsonStr = content.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
         result = JSON.parse(jsonStr);
       } catch (e) {
-        console.error('Parse world generation error:', e, 'Raw:', response.content);
+        logError('Parse world generation error:', e);
         // 返回默认结果
         result = {
           description: `${name}是一个${type}风格的世界。${era || ''}时期，${races || '各族'}在这片土地上争夺生存空间。${conflict || '冲突与纷争'}构成了这个世界的核心主题。力量体系基于${powerSystem || '未知力量'}，而${factions || '各方势力'}则代表着这个世界的主要势力格局。`,
@@ -1647,7 +1657,7 @@ ${choiceLegacyText}
         talents: talents.length > 0 ? talents : [],
       });
     } catch (error: any) {
-      console.error('Generate world error:', error);
+      logError('Generate world error:', error);
       res.status(500).json({
         success: false,
         message: '生成世界设定失败: ' + (error.response?.data?.error?.message || error.message),
@@ -1712,7 +1722,7 @@ ${choiceLegacyText}
         reply: response.content,
       });
     } catch (error: any) {
-      console.error('NPC chat error:', error);
+      logError('NPC chat error:', error);
       res.status(500).json({
         success: false,
         message: '对话失败: ' + (error.response?.data?.error?.message || error.message),
@@ -1772,7 +1782,7 @@ ${choiceLegacyText}
         prophecy,
       });
     } catch (error: any) {
-      console.error('Generate prophecy error:', error);
+      logError('Generate prophecy error:', error);
       res.status(500).json({
         success: false,
         message: '生成谶语失败: ' + (error.response?.data?.error?.message || error.message),
@@ -1848,7 +1858,7 @@ ${character?.customNote ? `自定义设定：${character.customNote}\n` : ''}死
 
       res.json({ success: true, text });
     } catch (error: any) {
-      console.error('Generate death narrative error:', error);
+      logError('Generate death narrative error:', error);
       res.status(500).json({
         success: false,
         message: '生成死亡叙事失败: ' + (error.response?.data?.error?.message || error.message),
